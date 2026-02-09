@@ -6,7 +6,7 @@
 
 ## Tasks
 
-- [ ] 1. 项目初始化与基础架构
+- [x] 1. 项目初始化与基础架构
   - [x] 1.1 初始化 Monorepo 项目结构
     - 使用 Turborepo + pnpm 创建 monorepo
     - 创建 apps/web、apps/server、packages/core、packages/shared、packages/db 目录
@@ -25,13 +25,13 @@
     - 配置 SQLite 连接
     - _Requirements: 15.1, 15.4_
   
-  - [~] 1.4 编写数据库层单元测试
+  - [x] 1.4 编写数据库层单元测试
     - 测试 CRUD 操作
     - 测试关联关系
     - _Requirements: 15.4_
 
 - [ ] 2. Target Profile Manager 实现
-  - [ ] 2.1 实现 Target Profile 配置接口
+  - [x] 2.1 实现 Target Profile 配置接口
     - 创建 packages/core/target-profile 模块
     - 实现 TargetProfileManager 类
     - 支持 base_url、login、allowed_routes、source_code 配置
@@ -41,18 +41,18 @@
     - 支持写操作配置（create、edit、delete）
     - _Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9_
   
-  - [ ] 2.2 实现环境变量解析
+  - [~] 2.2 实现环境变量解析
     - 支持 $VAR_NAME 格式的环境变量引用
     - 实现凭证解析函数
     - _Requirements: 1.3_
   
-  - [ ] 2.3 实现配置验证逻辑
+  - [~] 2.3 实现配置验证逻辑
     - 验证必填字段
     - 验证 URL 格式
     - 验证路由路径格式
     - _Requirements: 1.2_
   
-  - [ ] 2.4 编写 Target Profile 属性测试
+  - [~] 2.4 编写 Target Profile 属性测试
     - **Property 1: Target Profile Configuration Round-Trip**
     - **Validates: Requirements 1.1, 1.2, 1.3**
 
