@@ -299,3 +299,13 @@ export const targetProfileManager = new TargetProfileManager();
 
 // Re-export types for convenience
 export type { TargetProfile, BrowserConfig, LoginConfig, SourceCodeConfig, AntdQuirksConfig, OperationType, UIFramework };
+
+// Re-export environment variable resolver functions
+export {
+  isEnvVariable,
+  extractEnvVarName,
+  resolveEnvVariable,
+  resolveCredentials,
+  resolveLoginConfig,
+  type Credentials,
+} from './env-resolver.js';
