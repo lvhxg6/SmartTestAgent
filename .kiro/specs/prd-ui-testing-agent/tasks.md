@@ -46,13 +46,13 @@
     - 实现凭证解析函数
     - _Requirements: 1.3_
   
-  - [~] 2.3 实现配置验证逻辑
+  - [x] 2.3 实现配置验证逻辑
     - 验证必填字段
     - 验证 URL 格式
     - 验证路由路径格式
     - _Requirements: 1.2_
   
-  - [~] 2.4 编写 Target Profile 属性测试
+  - [x] 2.4 编写 Target Profile 属性测试
     - **Property 1: Target Profile Configuration Round-Trip**
     - **Validates: Requirements 1.1, 1.2, 1.3**
 
