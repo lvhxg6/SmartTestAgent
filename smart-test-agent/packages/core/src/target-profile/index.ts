@@ -24,6 +24,8 @@ import type {
   UIFramework,
 } from '@smart-test-agent/shared';
 
+import { validateTargetProfile, type ValidationResult } from './validator.js';
+
 // ============================================================================
 // Input Types for Create/Update Operations
 // ============================================================================
@@ -84,11 +86,20 @@ export class TargetProfileManager {
    * 
    * @param data - The profile data to create
    * @returns The created Target Profile
-   * @throws Error if project doesn't exist or profile already exists for project
+   * @throws Error if validation fails, project doesn't exist, or profile already exists for project
    * 
    * @see Requirements 1.1, 1.2
    */
   async create(data: CreateTargetProfileInput): Promise<TargetProfile> {
+    // Validate the input data
+    const validationResult = validateTargetProfile(data);
+    if (!validationResult.valid) {
+      const errorMessages = validationResult.errors
+        .map(e => `${e.field}: ${e.message}`)
+        .join('; ');
+      throw new Error(`Validation failed: ${errorMessages}`);
+    }
+
     // Check if project exists
     const project = await prisma.project.findUnique({
       where: { id: data.projectId },
@@ -125,6 +136,18 @@ export class TargetProfileManager {
     });
 
     return this.fromDbFormat(dbProfile);
+  }
+
+  /**
+   * Validate a Target Profile input without creating it
+   * 
+   * @param data - The profile data to validate
+   * @returns ValidationResult with valid status and any errors
+   * 
+   * @see Requirements 1.2
+   */
+  validate(data: CreateTargetProfileInput): ValidationResult {
+    return validateTargetProfile(data);
   }
 
   /**
@@ -309,3 +332,17 @@ export {
   resolveLoginConfig,
   type Credentials,
 } from './env-resolver.js';
+
+// Re-export validator functions and types
+export {
+  validateTargetProfile,
+  validateBaseUrl,
+  validateRoutes,
+  validateLoginConfig,
+  validateBrowserConfig,
+  validateSourceCodeConfig,
+  validateAntdQuirksConfig,
+  ValidationErrorCodes,
+  type ValidationError,
+  type ValidationResult,
+} from './validator.js';
