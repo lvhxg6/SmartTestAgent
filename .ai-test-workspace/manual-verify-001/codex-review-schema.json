@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "required": ["run_id", "review_type", "reviewed_at", "summary", "reviews"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": { "type": "string" },
+    "review_type": { "type": "string", "enum": ["execution_results"] },
+    "reviewed_at": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["total_reviewed", "agree", "disagree", "uncertain"],
+      "additionalProperties": false,
+      "properties": {
+        "total_reviewed": { "type": "integer" },
+        "agree": { "type": "integer" },
+        "disagree": { "type": "integer" },
+        "uncertain": { "type": "integer" }
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["subject_id", "subject_type", "original_verdict", "review_verdict", "conflict_type", "reasoning", "suggestions"],
+        "additionalProperties": false,
+        "properties": {
+          "subject_id": { "type": "string" },
+          "subject_type": { "type": "string", "enum": ["assertion"] },
+          "original_verdict": { "type": "string", "enum": ["pass", "fail", "error"] },
+          "review_verdict": { "type": "string", "enum": ["agree", "disagree", "uncertain"] },
+          "conflict_type": { "type": ["string", "null"], "enum": ["fact_conflict", "evidence_missing", "threshold_conflict", null] },
+          "reasoning": { "type": "string" },
+          "suggestions": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

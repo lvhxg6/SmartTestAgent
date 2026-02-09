@@ -1,0 +1,148 @@
+{
+  "run_id": "manual-verify-001",
+  "environment": {
+    "target_url": "https://localhost:8089",
+    "browser": "chromium",
+    "viewport": "1920x1080",
+    "locale": "zh-CN"
+  },
+  "summary": {
+    "total_cases": 10,
+    "total_assertions": 37,
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0
+  },
+  "test_cases": [
+    {
+      "case_id": "REQ-001-TC-001",
+      "requirement_id": "REQ-001",
+      "route": "/autoscan",
+      "title": "页面加载后默认显示基线检测Tab及四个Tab选项",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-001-TC-001-A-001", "type": "element_visible", "description": "基线检测Tab可见", "expected": "Tab可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-001-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('tab', { name: '基线检测' }) 成功定位并可见" },
+        { "assertion_id": "REQ-001-TC-001-A-002", "type": "element_visible", "description": "弱口令检测Tab可见", "expected": "Tab可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-001-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('tab', { name: '弱口令检测' }) 成功定位并可见" },
+        { "assertion_id": "REQ-001-TC-001-A-003", "type": "element_visible", "description": "系统漏洞Tab可见", "expected": "Tab可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-001-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('tab', { name: '系统漏洞' }) 成功定位并可见" },
+        { "assertion_id": "REQ-001-TC-001-A-004", "type": "element_visible", "description": "外部漏洞Tab可见", "expected": "Tab可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-001-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('tab', { name: '外部漏洞' }) 成功定位并可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-001-TC-002",
+      "requirement_id": "REQ-001",
+      "route": "/autoscan",
+      "title": "点击Tab切换到弱口令检测",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-001-TC-002-A-001", "type": "text_content", "description": "弱口令检测Tab选中", "expected": "aria-selected=true", "actual": "aria-selected=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-001-TC-002.png", "page_url": "/autoscan" }, "agent_reasoning": "点击弱口令检测Tab后，aria-selected属性变为true" }
+      ]
+    },
+    {
+      "case_id": "REQ-002-TC-001",
+      "requirement_id": "REQ-002",
+      "route": "/autoscan",
+      "title": "自动下发开关展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-002-TC-001-A-001", "type": "element_visible", "description": "是否开启标签可见", "expected": "文本可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-002-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByText('是否开启') 成功定位并可见" },
+        { "assertion_id": "REQ-002-TC-001-A-002", "type": "element_visible", "description": "Switch开关可见", "expected": "Switch可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-002-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('switch') 成功定位并可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-003-TC-001",
+      "requirement_id": "REQ-003",
+      "route": "/autoscan",
+      "title": "自动下发参数配置区域展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-003-TC-001-A-001", "type": "element_visible", "description": "自动下发参数区块标题", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "区块标题文本可见" },
+        { "assertion_id": "REQ-003-TC-001-A-002", "type": "element_visible", "description": "每月开始扫描日期标签", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" },
+        { "assertion_id": "REQ-003-TC-001-A-003", "type": "element_visible", "description": "开始时间标签", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" },
+        { "assertion_id": "REQ-003-TC-001-A-004", "type": "element_visible", "description": "单个任务下发最大资产数标签", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" },
+        { "assertion_id": "REQ-003-TC-001-A-005", "type": "element_visible", "description": "任务超时最大等待时间标签", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" },
+        { "assertion_id": "REQ-003-TC-001-A-006", "type": "element_visible", "description": "自动任务创建用户标签", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-003-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-004-TC-001",
+      "requirement_id": "REQ-004",
+      "route": "/autoscan",
+      "title": "盲时配置区域展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-004-TC-001-A-001", "type": "element_visible", "description": "盲时区块标题可见", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-004-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "区块标题可见" },
+        { "assertion_id": "REQ-004-TC-001-A-002", "type": "element_visible", "description": "盲时间隔标签可见", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-004-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "表单标签可见" },
+        { "assertion_id": "REQ-004-TC-001-A-003", "type": "element_visible", "description": "添加盲时规则按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-004-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('button', { name: '添加盲时规则' }) 可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-005-TC-001",
+      "requirement_id": "REQ-005",
+      "route": "/autoscan",
+      "title": "资产范围配置区域展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-005-TC-001-A-001", "type": "element_visible", "description": "资产范围区块标题可见", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-005-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "区块标题可见" },
+        { "assertion_id": "REQ-005-TC-001-A-002", "type": "element_visible", "description": "全部资产Radio可见", "expected": "Radio可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-005-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('radio', { name: '全部资产' }) 可见" },
+        { "assertion_id": "REQ-005-TC-001-A-003", "type": "element_visible", "description": "仅上报资产Radio可见", "expected": "Radio可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-005-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "Radio可见" },
+        { "assertion_id": "REQ-005-TC-001-A-004", "type": "element_visible", "description": "非上报资产Radio可见", "expected": "Radio可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-005-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "Radio可见" },
+        { "assertion_id": "REQ-005-TC-001-A-005", "type": "element_visible", "description": "业务系统选择标签可见", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-005-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "标签可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-006-TC-001",
+      "requirement_id": "REQ-006",
+      "route": "/autoscan",
+      "title": "自动下发模式配置区域展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-006-TC-001-A-001", "type": "element_visible", "description": "模式区块标题可见", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-006-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "区块标题可见" },
+        { "assertion_id": "REQ-006-TC-001-A-002", "type": "element_visible", "description": "选择工具标签可见", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-006-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "标签可见" },
+        { "assertion_id": "REQ-006-TC-001-A-003", "type": "element_visible", "description": "合规模板标签可见", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-006-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "标签可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-009-TC-001",
+      "requirement_id": "REQ-009",
+      "route": "/autoscan",
+      "title": "操作按钮栏展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-009-TC-001-A-001", "type": "element_visible", "description": "自动扫描情况跟踪按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-009-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "按钮可见" },
+        { "assertion_id": "REQ-009-TC-001-A-002", "type": "element_visible", "description": "下发新一轮次任务按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-009-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "按钮可见" },
+        { "assertion_id": "REQ-009-TC-001-A-003", "type": "element_visible", "description": "保存配置按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-009-TC-001.png", "page_url": "/autoscan" }, "agent_reasoning": "按钮可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-010-TC-001",
+      "requirement_id": "REQ-010",
+      "route": "/autoscan",
+      "title": "自动扫描情况跟踪弹框展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-010-TC-001-A-001", "type": "element_visible", "description": "弹框标题可见", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Modal标题'自动扫描情况跟踪'可见" },
+        { "assertion_id": "REQ-010-TC-001-A-002", "type": "element_visible", "description": "刷新按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "刷新按钮可见" },
+        { "assertion_id": "REQ-010-TC-001-A-003", "type": "element_visible", "description": "关闭按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Ant Design按钮文本为'关 闭'(含空格)，使用正则/关.*闭/匹配成功" },
+        { "assertion_id": "REQ-010-TC-001-A-004", "type": "element_visible", "description": "数据表格可见", "expected": "表格可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "ant-table组件可见" },
+        { "assertion_id": "REQ-010-TC-001-A-005", "type": "element_visible", "description": "月份筛选可见", "expected": "筛选可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "'月份：'文本可见" },
+        { "assertion_id": "REQ-010-TC-001-A-006", "type": "element_visible", "description": "业务系统筛选可见", "expected": "筛选可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "'业务系统：'文本可见" },
+        { "assertion_id": "REQ-010-TC-001-A-007", "type": "element_visible", "description": "状态筛选可见", "expected": "筛选可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-010-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "'状态：'文本可见" }
+      ]
+    },
+    {
+      "case_id": "REQ-011-TC-001",
+      "requirement_id": "REQ-011",
+      "route": "/autoscan",
+      "title": "下发新一轮次任务弹框展示",
+      "status": "passed",
+      "assertions": [
+        { "assertion_id": "REQ-011-TC-001-A-001", "type": "element_visible", "description": "弹框标题可见", "expected": "标题可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Modal标题'下发新一轮次任务'可见" },
+        { "assertion_id": "REQ-011-TC-001-A-002", "type": "element_visible", "description": "定时开始时间标签可见", "expected": "标签可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "'定时开始时间'文本可见" },
+        { "assertion_id": "REQ-011-TC-001-A-003", "type": "element_visible", "description": "全部Checkbox可见", "expected": "Checkbox可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "getByRole('checkbox', { name: '全部' }) 可见" },
+        { "assertion_id": "REQ-011-TC-001-A-004", "type": "element_visible", "description": "上次扫描失败资产Checkbox可见", "expected": "Checkbox可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Checkbox可见" },
+        { "assertion_id": "REQ-011-TC-001-A-005", "type": "element_visible", "description": "本轮未扫描到的资产Checkbox可见", "expected": "Checkbox可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Checkbox可见" },
+        { "assertion_id": "REQ-011-TC-001-A-006", "type": "element_visible", "description": "确认按钮可见", "expected": "按钮可见", "actual": "visible=true", "machine_verdict": "pass", "agent_verdict": "pass", "evidence": { "screenshot": "evidence/screenshots/REQ-011-TC-001-retry.png", "page_url": "/autoscan" }, "agent_reasoning": "Ant Design按钮文本为'确 认'(含空格)，使用正则/确.*认/匹配成功" }
+      ]
+    }
+  ]
+}

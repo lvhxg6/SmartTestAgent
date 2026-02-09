@@ -1,0 +1,372 @@
+{
+  "run_id": "script-verify-001",
+  "executed_at": "2026-02-09T05:52:11.752Z",
+  "elapsed_seconds": 30,
+  "environment": {
+    "target": "https://localhost:8089",
+    "browser": "chromium",
+    "viewport": "1920x1080"
+  },
+  "summary": {
+    "total_cases": 11,
+    "passed_cases": 11,
+    "failed_cases": 0,
+    "total_assertions": 46,
+    "passed_assertions": 46
+  },
+  "test_cases": [
+    {
+      "case_id": "TC-001",
+      "title": "页面加载后展示四个Tab",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "基线检测Tab可见",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "弱口令检测Tab可见",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "系统漏洞Tab可见",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "外部漏洞Tab可见",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-002",
+      "title": "Tab切换到弱口令检测",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "弱口令检测Tab选中",
+          "verdict": "pass",
+          "actual": "aria-selected=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-003",
+      "title": "开关和参数配置区域展示",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "是否开启标签",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "自动下发参数标题",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "每月开始扫描日期",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "开始时间",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-5",
+          "description": "单个任务下发最大资产数",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-6",
+          "description": "任务超时最大等待时间",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-7",
+          "description": "自动任务创建用户",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-8",
+          "description": "Switch开关可见",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-004",
+      "title": "盲时、资产范围、模式区域展示",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "添加盲时规则按钮",
+          "verdict": "pass",
+          "actual": "visible"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "全部资产Radio",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "仅上报资产Radio",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "非上报资产Radio",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-5",
+          "description": "保存配置按钮",
+          "verdict": "pass",
+          "actual": "visible"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-005",
+      "title": "操作按钮栏",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "自动扫描情况跟踪按钮",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "下发新一轮次任务按钮",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-006",
+      "title": "自动扫描情况跟踪弹框",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "弹框标题",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "数据表格",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "月份筛选",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "业务系统筛选",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-5",
+          "description": "状态筛选",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-007",
+      "title": "下发新一轮次任务弹框",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "弹框标题",
+          "verdict": "pass",
+          "actual": "visible"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "定时开始时间",
+          "verdict": "pass",
+          "actual": "visible"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "全部Checkbox",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "上次扫描失败资产Checkbox",
+          "verdict": "pass",
+          "actual": "visible=true"
+        },
+        {
+          "assertion_id": "A-5",
+          "description": "本轮未扫描到的资产Checkbox",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-008",
+      "title": "外部漏洞Tab特殊提示",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "基线Tab下无提示",
+          "verdict": "pass",
+          "actual": "visible=false"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "外部漏洞Tab下有提示",
+          "verdict": "pass",
+          "actual": "visible=true"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-009",
+      "title": "保存原始结果条件展示",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "基线检测有保存原始结果",
+          "verdict": "pass",
+          "actual": "visible"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "弱口令检测有保存原始结果",
+          "verdict": "pass",
+          "actual": "visible"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "系统漏洞无保存原始结果",
+          "verdict": "pass",
+          "actual": "count=0"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "外部漏洞无保存原始结果",
+          "verdict": "pass",
+          "actual": "count=0"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-010",
+      "title": "手动下发Checkbox互斥",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "默认全部选中",
+          "verdict": "pass",
+          "actual": "checked"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "失败资产置灰",
+          "verdict": "pass",
+          "actual": "disabled"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "未扫描资产置灰",
+          "verdict": "pass",
+          "actual": "disabled"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "取消后失败资产可选",
+          "verdict": "pass",
+          "actual": "enabled"
+        },
+        {
+          "assertion_id": "A-5",
+          "description": "取消后未扫描资产可选",
+          "verdict": "pass",
+          "actual": "enabled"
+        },
+        {
+          "assertion_id": "A-6",
+          "description": "重选后再次置灰",
+          "verdict": "pass",
+          "actual": "disabled"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case_id": "TC-011",
+      "title": "盲时表格添加/切换/删除",
+      "assertions": [
+        {
+          "assertion_id": "A-1",
+          "description": "新增一行",
+          "verdict": "pass",
+          "actual": "1->2"
+        },
+        {
+          "assertion_id": "A-2",
+          "description": "默认类型整月",
+          "verdict": "pass",
+          "actual": "type=整月"
+        },
+        {
+          "assertion_id": "A-3",
+          "description": "时间段显示时间选择器",
+          "verdict": "pass",
+          "actual": "pickers=2"
+        },
+        {
+          "assertion_id": "A-4",
+          "description": "删除后恢复",
+          "verdict": "pass",
+          "actual": "rows=1"
+        }
+      ],
+      "status": "passed"
+    }
+  ]
+}

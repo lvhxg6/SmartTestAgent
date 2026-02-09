@@ -1,0 +1,195 @@
+{
+  "run_id": "manual-verify-001",
+  "prd_source": "任务自动下发配置-PRD-前端-20260129120000.md",
+  "tested_routes": ["/autoscan"],
+  "requirements": [
+    {
+      "requirement_id": "REQ-001",
+      "title": "页面Tab切换展示四种扫描类型",
+      "description": "页面顶部展示4个Tab：基线检测、弱口令检测、系统漏洞、外部漏洞，点击Tab可切换",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "页面加载后默认显示基线检测Tab",
+        "Tab栏展示4个选项：基线检测、弱口令检测、系统漏洞、外部漏洞",
+        "点击不同Tab可切换，页面内容随之变化"
+      ],
+      "source_section": "PRD 3.1 页面入口",
+      "tags": ["ui", "tab", "navigation"]
+    },
+    {
+      "requirement_id": "REQ-002",
+      "title": "自动下发开关展示",
+      "description": "页面展示自动下发开关（Switch组件），显示开启/关闭状态",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "页面展示'是否开启'标签和Switch开关组件",
+        "Switch显示当前开启/关闭状态"
+      ],
+      "source_section": "PRD 4.1 配置项UI设计",
+      "tags": ["ui", "switch", "config"]
+    },
+    {
+      "requirement_id": "REQ-003",
+      "title": "自动下发参数配置区域展示",
+      "description": "展示自动下发参数配置区域，包含每月开始扫描日期、开始时间、最大资产数、超时时间、创建用户等配置项",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "展示'自动下发参数'区块标题",
+        "展示'每月开始扫描日期'下拉选择框",
+        "展示'开始时间'下拉选择框（0-23整点）",
+        "展示'单个任务下发最大资产数'数字输入框",
+        "展示'任务超时最大等待时间'数字输入框",
+        "展示'自动任务创建用户'下拉选择框"
+      ],
+      "source_section": "PRD 4.1 配置项UI设计",
+      "tags": ["ui", "form", "config"]
+    },
+    {
+      "requirement_id": "REQ-004",
+      "title": "盲时配置区域展示",
+      "description": "展示自动下发时间（业务系统忙时）配置区域，包含盲时间隔和盲时规则表格",
+      "priority": "P1",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "展示'自动下发时间（业务系统忙时）'区块标题",
+        "展示'下发任务距离忙时间隔'数字输入框",
+        "展示盲时配置表格（含序号、盲时类型、盲时值、操作列）",
+        "展示'添加盲时规则'按钮",
+        "展示盲时规则提示文案"
+      ],
+      "source_section": "PRD 5.2 盲时类型UI设计",
+      "tags": ["ui", "table", "blind_time"]
+    },
+    {
+      "requirement_id": "REQ-005",
+      "title": "资产范围配置区域展示",
+      "description": "展示自动下发资产范围配置区域，包含资产范围单选和业务系统树形多选",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "展示'自动下发资产范围'区块标题",
+        "展示资产范围Radio单选：全部资产/仅上报资产/非上报资产",
+        "展示业务系统TreeSelect树形多选下拉"
+      ],
+      "source_section": "PRD 6.1 配置项UI设计",
+      "tags": ["ui", "radio", "tree_select", "asset"]
+    },
+    {
+      "requirement_id": "REQ-006",
+      "title": "自动下发模式配置区域展示",
+      "description": "展示自动下发模式配置区域，包含工具卡片选择和合规模板下拉",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "展示'自动下发模式'区块标题",
+        "展示'选择工具'区域（卡片式选择）",
+        "展示'合规模板'下拉选择框"
+      ],
+      "source_section": "PRD 7.1 通用配置UI设计",
+      "tags": ["ui", "card", "select", "tool"]
+    },
+    {
+      "requirement_id": "REQ-007",
+      "title": "基线检测和弱口令检测展示保存原始结果选项",
+      "description": "基线检测和弱口令检测Tab下展示'保存原始结果'Checkbox，系统漏洞和外部漏洞Tab下不展示",
+      "priority": "P1",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "基线检测Tab下展示'保存原始结果'Checkbox",
+        "弱口令检测Tab下展示'保存原始结果'Checkbox",
+        "系统漏洞Tab下不展示'保存原始结果'Checkbox",
+        "外部漏洞Tab下不展示'保存原始结果'Checkbox"
+      ],
+      "source_section": "PRD 7.2 差异配置",
+      "tags": ["ui", "checkbox", "conditional"]
+    },
+    {
+      "requirement_id": "REQ-008",
+      "title": "外部漏洞Tab展示特殊提示",
+      "description": "外部漏洞Tab下展示'外部漏洞扫描仅针对应用类型资产'的提示信息",
+      "priority": "P1",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "切换到外部漏洞Tab时，资产范围区域展示蓝色提示信息",
+        "提示内容包含'外部漏洞扫描仅针对应用类型资产'"
+      ],
+      "source_section": "PRD 6.3 外部漏洞扫描特殊规则",
+      "tags": ["ui", "alert", "ext_vuln"]
+    },
+    {
+      "requirement_id": "REQ-009",
+      "title": "操作按钮栏展示",
+      "description": "页面展示'自动扫描情况跟踪'和'下发新一轮次任务'两个操作按钮",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "展示'自动扫描情况跟踪'按钮",
+        "展示'下发新一轮次任务'按钮",
+        "展示'保存配置'按钮"
+      ],
+      "source_section": "PRD 8.2 页面元素",
+      "tags": ["ui", "button", "toolbar"]
+    },
+    {
+      "requirement_id": "REQ-010",
+      "title": "自动扫描情况跟踪弹框展示",
+      "description": "点击'自动扫描情况跟踪'按钮，弹出历史扫描记录弹框，展示查询条件和轮次列表",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "点击按钮后弹出Modal弹框",
+        "弹框标题为'自动扫描情况跟踪'",
+        "展示查询条件：月份选择器、业务系统下拉、状态下拉",
+        "展示刷新按钮",
+        "展示数据表格（含序号、月份、执行轮次、目标名称、失败业务系统、执行时间、状态、操作列）"
+      ],
+      "source_section": "PRD 8.3 自动扫描情况跟踪弹框",
+      "tags": ["ui", "modal", "table", "query"]
+    },
+    {
+      "requirement_id": "REQ-011",
+      "title": "下发新一轮次任务弹框展示",
+      "description": "点击'下发新一轮次任务'按钮，弹出配置弹窗，展示定时时间和资产范围选择",
+      "priority": "P0",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "点击按钮后弹出Modal弹框",
+        "弹框标题为'下发新一轮次任务'",
+        "展示'定时开始时间'日期时间选择器",
+        "展示'选择资产范围'复选框组：全部/上次扫描失败资产/本轮未扫描到的资产",
+        "展示确认和取消按钮"
+      ],
+      "source_section": "PRD 8.5 手动下发新一轮次弹框",
+      "tags": ["ui", "modal", "form", "manual_trigger"]
+    },
+    {
+      "requirement_id": "REQ-012",
+      "title": "手动下发资产范围选择互斥规则",
+      "description": "选择'全部'时，其他两项置灰不可选；取消'全部'后可选其他两项",
+      "priority": "P1",
+      "testable": true,
+      "route": "/autoscan",
+      "acceptance_criteria": [
+        "默认选中'全部'",
+        "选中'全部'时，'上次扫描失败资产'和'本轮未扫描到的资产'置灰不可选",
+        "取消'全部'后，其他两项恢复可选状态"
+      ],
+      "source_section": "PRD 8.5.3 选择交互规则",
+      "tags": ["ui", "checkbox", "interaction"]
+    }
+  ]
+}

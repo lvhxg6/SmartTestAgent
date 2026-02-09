@@ -1,0 +1,175 @@
+{
+  "run_id": "manual-verify-001",
+  "test_cases": [
+    {
+      "case_id": "REQ-001-TC-001",
+      "requirement_id": "REQ-001",
+      "route": "/autoscan",
+      "title": "页面加载后默认显示基线检测Tab及四个Tab选项",
+      "precondition": "已登录系统",
+      "steps": [
+        { "step": 1, "action": "navigate", "target": "/autoscan", "description": "导航到任务自动下发配置页面" },
+        { "step": 2, "action": "wait", "target": "getByRole('tab', { name: '基线检测' })", "description": "等待Tab栏加载完成" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-001-TC-001-A-001", "type": "element_visible", "description": "基线检测Tab应可见", "expected": "Tab可见", "selector": "getByRole('tab', { name: '基线检测' })" },
+        { "assertion_id": "REQ-001-TC-001-A-002", "type": "element_visible", "description": "弱口令检测Tab应可见", "expected": "Tab可见", "selector": "getByRole('tab', { name: '弱口令检测' })" },
+        { "assertion_id": "REQ-001-TC-001-A-003", "type": "element_visible", "description": "系统漏洞Tab应可见", "expected": "Tab可见", "selector": "getByRole('tab', { name: '系统漏洞' })" },
+        { "assertion_id": "REQ-001-TC-001-A-004", "type": "element_visible", "description": "外部漏洞Tab应可见", "expected": "Tab可见", "selector": "getByRole('tab', { name: '外部漏洞' })" }
+      ],
+      "tags": ["tab", "default_load"]
+    },
+    {
+      "case_id": "REQ-001-TC-002",
+      "requirement_id": "REQ-001",
+      "route": "/autoscan",
+      "title": "点击Tab切换到弱口令检测",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "click", "target": "getByRole('tab', { name: '弱口令检测' })", "description": "点击弱口令检测Tab" },
+        { "step": 2, "action": "wait", "target": "1000ms", "description": "等待页面内容切换" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-001-TC-002-A-001", "type": "text_content", "description": "弱口令检测Tab应为选中状态", "expected": "Tab处于选中状态", "selector": "getByRole('tab', { name: '弱口令检测', selected: true })" }
+      ],
+      "tags": ["tab", "switch"]
+    },
+    {
+      "case_id": "REQ-002-TC-001",
+      "requirement_id": "REQ-002",
+      "route": "/autoscan",
+      "title": "自动下发开关展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByText('是否开启')", "description": "等待开关区域加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-002-TC-001-A-001", "type": "element_visible", "description": "是否开启标签应可见", "expected": "文本可见", "selector": "getByText('是否开启')" },
+        { "assertion_id": "REQ-002-TC-001-A-002", "type": "element_visible", "description": "Switch开关组件应可见", "expected": "Switch可见", "selector": "getByRole('switch')" }
+      ],
+      "tags": ["switch", "config"]
+    },
+    {
+      "case_id": "REQ-003-TC-001",
+      "requirement_id": "REQ-003",
+      "route": "/autoscan",
+      "title": "自动下发参数配置区域展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByText('自动下发参数')", "description": "等待参数区域加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-003-TC-001-A-001", "type": "element_visible", "description": "自动下发参数区块标题", "expected": "标题可见", "selector": "getByText('自动下发参数')" },
+        { "assertion_id": "REQ-003-TC-001-A-002", "type": "element_visible", "description": "每月开始扫描日期标签", "expected": "标签可见", "selector": "getByText('每月开始扫描日期')" },
+        { "assertion_id": "REQ-003-TC-001-A-003", "type": "element_visible", "description": "开始时间标签", "expected": "标签可见", "selector": "getByText('开始时间')" },
+        { "assertion_id": "REQ-003-TC-001-A-004", "type": "element_visible", "description": "单个任务下发最大资产数标签", "expected": "标签可见", "selector": "getByText('单个任务下发最大资产数')" },
+        { "assertion_id": "REQ-003-TC-001-A-005", "type": "element_visible", "description": "任务超时最大等待时间标签", "expected": "标签可见", "selector": "getByText('任务超时最大等待时间')" },
+        { "assertion_id": "REQ-003-TC-001-A-006", "type": "element_visible", "description": "自动任务创建用户标签", "expected": "标签可见", "selector": "getByText('自动任务创建用户')" }
+      ],
+      "tags": ["form", "config"]
+    },
+    {
+      "case_id": "REQ-004-TC-001",
+      "requirement_id": "REQ-004",
+      "route": "/autoscan",
+      "title": "盲时配置区域展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByText('自动下发时间（业务系统忙时）')", "description": "等待盲时区域加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-004-TC-001-A-001", "type": "element_visible", "description": "盲时区块标题", "expected": "标题可见", "selector": "getByText('自动下发时间（业务系统忙时）')" },
+        { "assertion_id": "REQ-004-TC-001-A-002", "type": "element_visible", "description": "盲时间隔标签", "expected": "标签可见", "selector": "getByText('下发任务距离忙时间隔')" },
+        { "assertion_id": "REQ-004-TC-001-A-003", "type": "element_visible", "description": "添加盲时规则按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '添加盲时规则' })" }
+      ],
+      "tags": ["blind_time", "table"]
+    },
+    {
+      "case_id": "REQ-005-TC-001",
+      "requirement_id": "REQ-005",
+      "route": "/autoscan",
+      "title": "资产范围配置区域展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByText('自动下发资产范围')", "description": "等待资产范围区域加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-005-TC-001-A-001", "type": "element_visible", "description": "资产范围区块标题", "expected": "标题可见", "selector": "getByText('自动下发资产范围')" },
+        { "assertion_id": "REQ-005-TC-001-A-002", "type": "element_visible", "description": "全部资产Radio", "expected": "Radio可见", "selector": "getByRole('radio', { name: '全部资产' })" },
+        { "assertion_id": "REQ-005-TC-001-A-003", "type": "element_visible", "description": "仅上报资产Radio", "expected": "Radio可见", "selector": "getByRole('radio', { name: '仅上报资产' })" },
+        { "assertion_id": "REQ-005-TC-001-A-004", "type": "element_visible", "description": "非上报资产Radio", "expected": "Radio可见", "selector": "getByRole('radio', { name: '非上报资产' })" },
+        { "assertion_id": "REQ-005-TC-001-A-005", "type": "element_visible", "description": "业务系统选择标签", "expected": "标签可见", "selector": "getByText('选择业务系统范围')" }
+      ],
+      "tags": ["radio", "tree_select", "asset"]
+    },
+    {
+      "case_id": "REQ-006-TC-001",
+      "requirement_id": "REQ-006",
+      "route": "/autoscan",
+      "title": "自动下发模式配置区域展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByText('自动下发模式')", "description": "等待模式区域加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-006-TC-001-A-001", "type": "element_visible", "description": "模式区块标题", "expected": "标题可见", "selector": "getByText('自动下发模式')" },
+        { "assertion_id": "REQ-006-TC-001-A-002", "type": "element_visible", "description": "选择工具标签", "expected": "标签可见", "selector": "getByText('选择工具')" },
+        { "assertion_id": "REQ-006-TC-001-A-003", "type": "element_visible", "description": "合规模板标签", "expected": "标签可见", "selector": "getByText('合规模板')" }
+      ],
+      "tags": ["card", "select", "tool"]
+    },
+    {
+      "case_id": "REQ-009-TC-001",
+      "requirement_id": "REQ-009",
+      "route": "/autoscan",
+      "title": "操作按钮栏展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "wait", "target": "getByRole('button', { name: '自动扫描情况跟踪' })", "description": "等待按钮栏加载" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-009-TC-001-A-001", "type": "element_visible", "description": "自动扫描情况跟踪按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '自动扫描情况跟踪' })" },
+        { "assertion_id": "REQ-009-TC-001-A-002", "type": "element_visible", "description": "下发新一轮次任务按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '下发新一轮次任务' })" },
+        { "assertion_id": "REQ-009-TC-001-A-003", "type": "element_visible", "description": "保存配置按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '保存配置' })" }
+      ],
+      "tags": ["button", "toolbar"]
+    },
+    {
+      "case_id": "REQ-010-TC-001",
+      "requirement_id": "REQ-010",
+      "route": "/autoscan",
+      "title": "自动扫描情况跟踪弹框展示",
+      "precondition": "已登录系统，已在自动下发配置页面",
+      "steps": [
+        { "step": 1, "action": "click", "target": "getByRole('button', { name: '自动扫描情况跟踪' })", "description": "点击自动扫描情况跟踪按钮" },
+        { "step": 2, "action": "wait", "target": "getByText('自动扫描情况跟踪')", "description": "等待弹框打开" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-010-TC-001-A-001", "type": "element_visible", "description": "弹框标题", "expected": "标题可见", "selector": "getByText('自动扫描情况跟踪')" },
+        { "assertion_id": "REQ-010-TC-001-A-002", "type": "element_visible", "description": "刷新按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '刷新' })" },
+        { "assertion_id": "REQ-010-TC-001-A-003", "type": "element_visible", "description": "关闭按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '关闭' })" }
+      ],
+      "tags": ["modal", "table", "query"]
+    },
+    {
+      "case_id": "REQ-011-TC-001",
+      "requirement_id": "REQ-011",
+      "route": "/autoscan",
+      "title": "下发新一轮次任务弹框展示",
+      "precondition": "已登录系统，已在自动下发配置页面，跟踪弹框已关闭",
+      "steps": [
+        { "step": 1, "action": "click", "target": "getByRole('button', { name: '下发新一轮次任务' })", "description": "点击下发新一轮次任务按钮" },
+        { "step": 2, "action": "wait", "target": "getByText('下发新一轮次任务')", "description": "等待弹框打开" }
+      ],
+      "assertions": [
+        { "assertion_id": "REQ-011-TC-001-A-001", "type": "element_visible", "description": "弹框标题", "expected": "标题可见", "selector": "getByText('下发新一轮次任务')" },
+        { "assertion_id": "REQ-011-TC-001-A-002", "type": "element_visible", "description": "定时开始时间标签", "expected": "标签可见", "selector": "getByText('定时开始时间')" },
+        { "assertion_id": "REQ-011-TC-001-A-003", "type": "element_visible", "description": "全部Checkbox", "expected": "Checkbox可见", "selector": "getByRole('checkbox', { name: '全部' })" },
+        { "assertion_id": "REQ-011-TC-001-A-004", "type": "element_visible", "description": "上次扫描失败资产Checkbox", "expected": "Checkbox可见", "selector": "getByRole('checkbox', { name: '上次扫描失败资产' })" },
+        { "assertion_id": "REQ-011-TC-001-A-005", "type": "element_visible", "description": "本轮未扫描到的资产Checkbox", "expected": "Checkbox可见", "selector": "getByRole('checkbox', { name: '本轮未扫描到的资产' })" },
+        { "assertion_id": "REQ-011-TC-001-A-006", "type": "element_visible", "description": "确认按钮", "expected": "按钮可见", "selector": "getByRole('button', { name: '确认' })" }
+      ],
+      "tags": ["modal", "form", "manual_trigger"]
+    }
+  ]
+}

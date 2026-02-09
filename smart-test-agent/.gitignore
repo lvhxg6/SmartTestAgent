@@ -38,6 +38,7 @@ pnpm-debug.log*
 # Database
 *.db
 *.sqlite
+data/
 
 # Generated
 prisma/generated/

@@ -1,4 +1,4 @@
-# PRD-Based UI Testing Agent System - 技术设计方案 (v6 - Review 三轮修正)
+# PRD-Based UI Testing Agent System - 技术设计方案 (v7 - Full Scope)
 
 ## Context
 
@@ -8,17 +8,17 @@
 - **目标用户：** 团队内部，Web 服务 + UI
 - **目标项目：** Java (Spring Boot) + Vue/React (Ant Design)
 - **AI 协作：** Claude Code 执行 + Codex 审核
-- **修复策略：** 只报告不修复（MVP 为现象级缺陷报告；Phase 3 加入源码定位 + 根因分析 + 修复建议）
+- **修复策略：** 只报告不修复（包含现象、证据、源码定位、根因分析与修复建议）
 - **部署模式：** 目标服务 IP/端口可配置，前端源码在本地同机
 - **测试方式：** 基于 Playwright 的 UI 自动化测试（源码辅助生成）
 
 ---
 
-## 0. Review 结论与收敛决策
+## 0. 设计结论与交付边界
 
 ### 0.1 核心判断
 
-方案方向正确，可落地。**MVP 选择 UI 测试而非 API 测试**，原因：
+方案方向正确，可落地。**选择 UI 测试而非 API 测试**，原因：
 - 业务逻辑复杂，API 层造数链路长、数据依赖多，成本高
 - 系统已有真实业务数据，登录后通过 UI 查询/操作即可验证
 - 查询类操作天然只读，不需要造数和清理
@@ -28,19 +28,18 @@
 
 | # | 风险 | 处置决策 |
 |---|------|---------|
-| R1 | 状态机过重，MVP 引入过多异常态 | MVP 收敛到 8 个核心态，异常统一为 `failed` + `reason_code` |
+| R1 | 状态机过重，异常态过多导致实现复杂度上升 | 保持 8 个核心态，异常统一为 `failed` + `reason_code` |
 | R2 | 交叉验证 agree/disagree 太粗，不支撑自动决策 | 每条 assertion 必须输出判定依据（evidence + 截图），冲突时转人工 |
-| R3 | 质量门禁缺采集口径、计算时机、失败处置 | 补充完整定义，MVP 启用 RC/APR；FR 需 ≥3 次历史后自动启用 |
+| R3 | 质量门禁缺采集口径、计算时机、失败处置 | 补充完整定义，RC/APR/FR/DDP/DER 全部定义清楚；受历史数据约束的指标按数据可用性启用 |
 | R4 | Playwright 选择器不稳定 | 源码辅助生成 + 选择器优先级约束 + 每步截图（见 1.2, 1.3） |
 | R5 | AI 上下文过大导致生成质量下降 | 源码裁剪策略：只给路由表 + 被测页面组件 + API 定义（见 1.3） |
 | R6 | manifest.json 缺少环境指纹，报告难追责 | 新增 `env_fingerprint` 字段（见 5.2） |
 
-### 0.3 MVP 收敛范围
+### 0.3 全量交付范围
 
-- **UI 查询测试链路**：登录 → 导航到目标页面 → 执行查询/浏览操作 → 验证页面展示 → 报告
+- **UI 测试链路**：登录 → 导航到目标页面 → 执行查询/浏览/写操作 → 验证页面展示与行为 → 报告
 - **源码辅助生成**：提供前端路由表 + 被测页面源码，AI 生成精准的 Playwright 脚本
-- **MVP 以只读操作为主**：查询、列表浏览、详情查看、搜索筛选
-- **写操作（表单提交/创建/删除）放 Phase 2**
+- **操作范围覆盖读写**：查询、列表浏览、详情查看、搜索筛选、创建、编辑、删除、表单提交
 - **人工审批点只保留一个**：用例生成后审批，其余环节自动执行
 - **报告产出后增加人工确认环节**（非审批，是确认发布）
 
@@ -48,7 +47,7 @@
 
 1. **requirements.json schema** — 含优先级、可测性标签、验收标准（见第 12 节）
 2. **execution-results.json assertion 粒度** — 每条 assertion 含截图 + 操作步骤链（见第 13 节）
-3. **人工介入规则** — MVP 阶段只保留一条：双 agent 结论冲突 → 人工（见 7.2）
+3. **人工介入规则** — 关键判定冲突 → 人工（见 7.2）
 
 ---
 
@@ -61,7 +60,7 @@
     → 人工审批测试计划（唯一审批点）
   → Step 2: Claude Code 通过 Playwright 执行 UI 测试（每步截图）
   → Step 3: Codex 审核执行结果（截图 + 断言，误报/漏报检测）
-  → Step 4: 发现缺陷 → 生成缺陷报告（MVP 不含源码深挖，Phase 3 加入）
+  → Step 4: 发现缺陷 → 生成缺陷报告（含源码定位、根因分析与修复建议）
   → Step 5: 质量门禁检查 → 生成最终测试报告 → 人工确认发布
 ```
 
@@ -83,8 +82,8 @@
     },
     "allowed_routes": ["/system/user", "/system/role", "/order/list"],
     "denied_routes": ["/system/config", "/monitor/*"],
-    "allowed_operations": ["query", "view_detail", "search", "filter", "paginate"],
-    "denied_operations": ["create", "delete", "batch_delete"],
+    "allowed_operations": ["query", "view_detail", "search", "filter", "paginate", "create", "update", "delete", "submit"],
+    "denied_operations": ["system_config_change", "permission_grant", "dangerous_batch_action"],
     "source_code": {
       "frontend_root": "/path/to/frontend/src",
       "router_file": "router/index.ts",
@@ -108,7 +107,7 @@
 | `login` | 是 | 登录配置：页面路径、表单字段文本、凭证引用、登录成功后的跳转路径。**凭证禁止明文存储**，使用环境变量引用（如 `$TEST_PASSWORD`） |
 | `allowed_routes` | 是 | 允许测试的页面路由（白名单） |
 | `denied_routes` | 否 | 禁止访问的路由（黑名单，双重保险） |
-| `allowed_operations` | 是 | MVP 允许的操作类型（只读为主） |
+| `allowed_operations` | 是 | 允许的操作类型（覆盖读写） |
 | `denied_operations` | 否 | 禁止的操作类型 |
 | `source_code` | 是 | 前端源码路径配置，用于源码辅助生成 |
 | `browser` | 否 | 浏览器配置（视口、语言、超时） |
@@ -170,7 +169,7 @@ AI 生成 Playwright 脚本前，系统自动从前端源码中提取上下文�
 
 ### 2.2 分步详细流程
 
-#### Phase 0: 项目配置（人工，一次性）
+#### 前置配置：项目初始化（人工，一次性）
 
 ```
 👤 人工操作：
@@ -223,21 +222,36 @@ AI 生成 Playwright 脚本前，系统自动从前端源码中提取上下文�
 
 #### Step 2: 执行 UI 测试（全自动）
 
+> **执行模式决策（已验证）：** 生成完整 JS 测试脚本 + `node test.js` 直接执行。
+> Playwright MCP 仅用于探索/调试阶段，不用于正式执行。
+> 详见验证报告 Step 4 对比数据：脚本方式 30 秒 / 46 断言 vs MCP 方式 15 分钟 / 37 断言。
+> （对比条件：单页面 /system/user 查询场景，Chromium headless，本地环境，单次执行。正式采纳前建议在多页面、多环境下补充验证。）
+
 ```
 🤖 Claude Code：
   输入：已审批的 test-cases.json + target-profile.json
   操作：
-    1. 启动 Playwright 浏览器
-    2. 登录目标系统（按 target profile 中的登录配置）
-    3. 按路由导航到被测页面
-    4. 执行操作（点击查询、输入搜索条件、切换分页等）
-    5. 每一步自动截图
-    6. 执行断言（检查表格是否有数据、页面标题是否正确等）
-  输出：execution-results.json + evidence/screenshots/ + evidence/traces/
+    1. 根据 test-cases.json 生成完整的 Playwright JS 测试脚本
+       - 脚本包含：浏览器启动、登录、导航、操作、截图、断言、结果输出
+       - 脚本为独立可执行文件，不依赖 AI 对话上下文
+       - 脚本输出 raw-results.json（仅含 machine_verdict）
+    2. 通过 Bash 工具执行 `node test-{run_id}.js`
+    3. AI 后处理：读取 raw-results.json + 截图，对 soft 类型断言补充 agent_verdict 和 agent_reasoning
+       - 确定性断言：agent_verdict/agent_reasoning 为选填，脚本已通过程序比对产出 machine_verdict
+       - AI 判定断言（soft）：必须补充 agent_verdict 和 agent_reasoning
+    4. 合并输出最终 execution-results.json
+  输出：test-{run_id}.js（可复现脚本）+ execution-results.json + evidence/screenshots/ + evidence/traces/
 
 🤖 Codex：不参与
 👤 人工：不参与
 ```
+
+**两种执行模式的定位：**
+
+| 模式 | 适用场景 | 特点 |
+|------|---------|------|
+| **JS 脚本直接执行**（正式模式） | 正式测试执行、CI/CD 集成、回归测试 | 高效（30s）、可复现、低 Token 消耗 |
+| **Playwright MCP 逐步调用**（调试模式） | 探索页面结构、调试选择器、排查失败用例 | 交互式、即时反馈、适合问题定位 |
 
 #### Step 3: 审核执行结果（全自动）
 
@@ -247,22 +261,28 @@ AI 生成 Playwright 脚本前，系统自动从前端源码中提取上下文�
 🤖 Codex：
   输入：test-cases.json + execution-results.json + 截图 + PRD 原文
   操作：
-    - 逐条审核断言结果
+    - 逐条审核断言结果（跳过 machine_verdict = error 的断言，仅审核有明确判定的断言）
     - 检查截图是否与断言一致（误报检测）
     - 检查是否有遗漏的验证点（漏报检测）
   输出：codex-review-results.json（每条断言的审核意见：agree / disagree / uncertain）
 ```
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  ⚙️ 交叉验证裁决（自动）                                   │
-│                                                         │
-│  Claude Code pass + Codex agree    → ✅ pass             │
-│  Claude Code fail + Codex agree    → ❌ fail             │
-│  Codex uncertain                   → 👤 转人工判定        │
-│  双方不一致                         → 👤 转人工判定        │
-│                          （状态 → failed, agent_conflict）│
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  ⚙️ 交叉验证裁决（自动，规则详见 7.2 判定矩阵）                  │
+│                                                              │
+│  确定性断言（element_visible / text_content 等）：              │
+│    machine_verdict + Codex agree     → ✅/❌ 维持机器结果      │
+│    machine_verdict + Codex disagree  → 👤 转人工              │
+│    machine_verdict + Codex uncertain → ✅/❌ 维持机器结果      │
+│                                                              │
+│  AI 判定断言（soft）：                                         │
+│    agent_verdict + Codex agree       → ✅/❌ 维持 AI 结果     │
+│    agent_verdict + Codex disagree    → 👤 转人工              │
+│    agent_verdict + Codex uncertain   → 👤 转人工              │
+│                                                              │
+│  转人工时：状态 → failed, reason_code = verdict_conflict       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 #### Step 4: 生成缺陷报告（全自动）
@@ -273,7 +293,7 @@ AI 生成 Playwright 脚本前，系统自动从前端源码中提取上下文�
   操作：汇总所有 fail 的断言，生成缺陷报告
   输出：final-report.json（含缺陷列表、截图、操作步骤回放）
 
-  注：MVP 不含源码深挖，Phase 3 才加入根因分析和修复建议
+  注：报告默认包含源码定位、根因分析和修复建议
 ```
 
 #### Step 5: 质量门禁 + 人工确认
@@ -303,10 +323,10 @@ AI 生成 Playwright 脚本前，系统自动从前端源码中提取上下文�
 
 | | 系统（编排引擎） | Claude Code | Codex | 人工 |
 |---|---|---|---|---|
-| Phase 0 配置 | | | | ✅ 配置 target profile |
+| 前置配置 | | | | ✅ 配置 target profile |
 | Step 0 源码定位 | ✅ 解析路由表 | | | |
 | Step 1 生成用例 | | ✅ 解析 PRD + 生成用例 | ✅ 审核用例质量 | ✅ **审批** |
-| Step 2 执行测试 | | ✅ Playwright 执行 | | |
+| Step 2 执行测试 | | ✅ 生成脚本 + 执行 | | |
 | Step 3 审核结果 | ✅ 交叉验证裁决 | | ✅ 审核执行结果 | ⚠️ 冲突时介入 |
 | Step 4 生成报告 | | ✅ 汇总缺陷报告 | | |
 | Step 5 门禁+发布 | ✅ 计算门禁指标 | | | ✅ **确认发布** |
@@ -342,7 +362,7 @@ graph TB
 
 ## 4. 状态机设计
 
-### 4.1 MVP 核心状态（8 态）
+### 4.1 核心状态（8 态）
 
 ```
 created → parsing → generating → awaiting_approval → executing → codex_reviewing → report_ready → completed
@@ -358,25 +378,26 @@ created → parsing → generating → awaiting_approval → executing → codex
 - `report_ready` — 报告已生成，等待人工确认发布
 - `completed` — 流程结束
 
-**终态：** `completed` / `failed`（MVP 中 failed 为真终态，恢复需新建 run；Phase 2 引入从 failed 恢复机制）
+**终态：** `completed` / `failed`（failed 为真终态，恢复通过新建 run）
 
-**异常处理：** MVP 阶段所有异常统一进入 `failed` 状态，通过 `reason_code` 区分：
+**异常处理：** 所有异常统一进入 `failed` 状态，通过 `reason_code` 区分：
 
 | reason_code | 含义 | 处置 |
 |-------------|------|------|
 | `retry_exhausted` | 可重试错误（网络/限流）重试耗尽 | 人工检查环境后重新发起 |
 | `agent_timeout` | AI agent 响应超时 | 检查 CLI 状态后重试 |
 | `approval_timeout` | 人工审批超时（默认 24h） | 重新发起或取消 |
-| `agent_conflict` | 双 agent 结论冲突且无法自动裁决 | 人工判定冲突原因后，手动新建 run 重跑（系统不会自动重跑） |
+| `confirm_timeout` | 人工确认发布超时（默认 48h） | 报告保留但标记为未确认，通知相关人员 |
+| `verdict_conflict` | 关键判定冲突（machine/agent 与 Codex 不一致）且无法自动裁决 | 人工判定冲突原因后，手动新建 run 重跑（系统不会自动重跑） |
 | `playwright_error` | Playwright 执行异常（元素未找到/超时/页面崩溃） | 检查选择器和页面状态后重试 |
 | `internal_error` | 系统内部错误 | 查日志修复后重试 |
 
-### 4.2 后续扩展状态（Phase 2+）
+### 4.2 扩展状态（可选）
 
-Phase 2 及以后根据需要拆分：
+如需更细粒度流程，可拆分：
 - `failed` 中的 `retry_exhausted` → 独立 `retrying` 状态（自动重试循环）
-- `failed` 中的 `agent_conflict` → 独立 `manual_intervention` 状态
-- 新增 `analyzing_defects` 状态（Phase 3 源码定位）
+- `failed` 中的 `verdict_conflict` → 独立 `manual_intervention` 状态
+- `report_ready` 前增加 `analyzing_defects` 状态（用于长耗时源码深挖）
 
 ### 4.3 幂等性
 
@@ -397,7 +418,8 @@ Phase 2 及以后根据需要拆分：
 │   └── api-{route}.ts         # 对应 API 定义
 ├── prd-parsed.json
 ├── requirements.json
-├── test-cases.json            # 含 Playwright 脚本
+├── test-cases.json            # 测试用例定义（步骤+断言模型）
+├── test-{run_id}.js           # 生成的可独立执行的测试脚本
 ├── codex-review-tc.json
 ├── execution-results.json
 ├── codex-review-results.json
@@ -442,33 +464,50 @@ Phase 2 及以后根据需要拆分：
 - `supports_stream_json` / `supports_allowed_tools` / `supports_suggest_mode`
 - 不支持的功能自动降级，降级决策写入 `manifest.json`
 
-**降级矩阵（MVP）：**
+**降级矩阵（运行时）：**
 
 | 能力 | 正常模式 | 降级模式 | 影响 |
 |------|---------|---------|------|
 | `stream-json` | `--output-format stream-json` | `--output-format json`，轮询读取 | 失去实时进度，功能不受影响 |
-| `allowed-tools` | `--allowedTools mcp__playwright__*,Bash,Read` | 不限制工具，prompt 中约束 | 安全性降低，需人工关注 |
+| `allowed-tools`（脚本生成） | `--allowedTools Bash,Read,Write` | 不限制工具，prompt 中约束 | 安全性降低，需人工关注 |
+| `allowed-tools`（探索调试） | `--allowedTools mcp__playwright__*,Read` | 不限制工具，prompt 中约束 | 安全性降低，需人工关注 |
 | `suggest-mode` | `--approval-mode suggest` | 只读 prompt + 人工审核结果 | Codex 审核变为纯文本输出，人工解读 |
 
 ### 6.2 调用方式
 
 ```typescript
-// Claude Code — UI 测试执行模式
-spawn('claude', ['--print', prompt, '--output-format', 'stream-json',
-  '--max-turns', '30', '--allowedTools', 'mcp__playwright__*,Bash,Read']);
+// Claude Code — 测试脚本生成模式
+// AI 生成完整的 Playwright JS 测试脚本，然后通过 Bash 执行
+spawn('claude', ['--print', generatePrompt, '--output-format', 'stream-json',
+  '--max-turns', '30', '--allowedTools', 'Bash,Read,Write']);
+
+// 生成的脚本通过 node 直接执行（不经过 AI 对话）
+spawn('node', ['test-{run_id}.js']);
+
+// Claude Code — 探索/调试模式（仅用于选择器调试和页面探索）
+spawn('claude', ['--print', debugPrompt, '--output-format', 'stream-json',
+  '--max-turns', '10', '--allowedTools', 'mcp__playwright__*,Read']);
 
 // Codex — 审核模式（只读，传入截图路径供审核）
 spawn('codex', ['--prompt', reviewPrompt, '--approval-mode', 'suggest']);
 ```
+
+**执行模式说明：**
+
+| 模式 | allowedTools | 用途 |
+|------|-------------|------|
+| 脚本生成（正式） | `Bash,Read,Write` | 生成 JS 脚本 + `node` 执行，不需要 MCP 工具 |
+| 探索调试 | `mcp__playwright__*,Read` | 交互式探索页面、调试选择器 |
+| Codex 审核 | suggest 模式 | 只读审核执行结果 |
 
 ### 6.3 Prompt 模板（4 套）
 
 | Prompt | 用途 | 输入 | 输出 |
 |--------|------|------|------|
 | `prd-parse.md` | PRD 解析 + UI 测试用例生成 | PRD 原文 + 路由表 + 页面源码 + API 定义 | requirements.json + test-cases.json（含 Playwright 步骤） |
-| `ui-test-execute.md` | Playwright UI 测试执行 | 测试用例 + target profile | execution-results.json + 截图 + trace |
+| `ui-test-execute.md` | Playwright 测试脚本生成 + 执行 | 测试用例 + target profile | test-{run_id}.js（可独立执行的脚本）+ execution-results.json + 截图 + trace |
 | `review-results.md` | Codex 审核 | 用例 + 执行结果 + 截图 + PRD | codex-review-results.json |
-| `defect-analyze.md` | 缺陷源码定位（Phase 3） | 缺陷信息 + 源码路径 + Codex 意见 | defect-analysis.json |
+| `defect-analyze.md` | 缺陷源码定位与根因分析 | 缺陷信息 + 源码路径 + Codex 意见 | defect-analysis.json |
 
 ## 7. 交叉验证与共识机制
 
@@ -480,34 +519,55 @@ Claude Code 执行层和 Codex 审核层使用**两套独立的判定字段**：
 |------|------|--------|------|
 | `machine_verdict` | execution-results.json | `pass` / `fail` / `error` | 程序自动比对结果 |
 | `agent_verdict` | execution-results.json | `pass` / `fail` / `error` | Claude Code 的 AI 判定 |
-| `review_verdict` | codex-review-results.json | `agree` / `disagree` / `uncertain` | Codex 对 Claude Code 判定的审核意见 |
+| `review_verdict` | codex-review-results.json | `agree` / `disagree` / `uncertain` | Codex 对原始判定（machine_verdict 或 agent_verdict）的审核意见 |
 
 ### 7.2 判定矩阵
 
-| Claude Code 判定 | Codex 判定 | 最终结果 |
+判定规则按断言类型区分（断言类型定义见 9.4 节）：
+
+**确定性断言**（type = `element_visible` / `text_content` / `element_count` / `navigation`）：
+
+以 `machine_verdict` 为主裁决，Codex 负责误报/漏报复核：
+
+| machine_verdict | Codex review_verdict | 最终结果 |
 |---|---|---|
 | pass | agree | **pass** |
 | fail | agree | **fail** |
-| pass | disagree | **转人工**（状态 → `failed`, reason_code = `agent_conflict`） |
-| fail | disagree | **转人工**（状态 → `failed`, reason_code = `agent_conflict`） |
-| pass/fail | uncertain | **转人工**（状态 → `failed`, reason_code = `agent_conflict`） |
+| pass | disagree | **转人工**（Codex 认为机器判定有误，如截图与结果不一致） |
+| fail | disagree | **转人工**（Codex 认为机器判定有误，如等待时机不当） |
+| pass/fail | uncertain | **pass/fail**（维持 machine_verdict，Codex 不确定不影响确定性结果） |
+| error | — | **error**（执行异常，不进入 Codex 审核） |
 
-### 7.3 人工介入规则（MVP）
+**AI 判定断言**（type = `soft`）：
 
-MVP 阶段只保留一条自动触发规则：
+以 `agent_verdict` 为主裁决，Codex 做交叉审核：
 
-- **双 agent 结论冲突 → 转人工判定**
+| agent_verdict | Codex review_verdict | 最终结果 |
+|---|---|---|
+| pass | agree | **pass** |
+| fail | agree | **fail** |
+| pass | disagree | **转人工**（状态 → `failed`, reason_code = `verdict_conflict`） |
+| fail | disagree | **转人工**（状态 → `failed`, reason_code = `verdict_conflict`） |
+| pass/fail | uncertain | **转人工**（状态 → `failed`, reason_code = `verdict_conflict`） |
 
-冲突发生时记录 `conflict_type`，用于后续分析和策略优化：
+> **设计意图**：确定性断言的 `machine_verdict` 是程序比对结果（如表格行数 > 0），可靠性高，Codex uncertain 时无需转人工。AI 判定断言依赖语义理解，双方不一致时必须人工裁决。
 
-| conflict_type | 含义 | MVP 处置 | 后续可优化为 |
+### 7.3 人工介入规则
+
+自动触发规则：
+
+- **关键判定冲突 → 转人工判定**（确定性断言中 Codex disagree，或 soft 断言中 Codex disagree/uncertain）
+
+冲突发生时记录 `conflict_type`，用于分析和策略优化：
+
+| conflict_type | 含义 | 当前处置 | 可选自动化优化 |
 |---------------|------|---------|-------------|
 | `fact_conflict` | 事实判定不一致（pass vs fail） | 人工判定 | 自动重跑一次后再判 |
 | `evidence_missing` | 一方认为截图/证据不足 | 人工判定 | 自动补充截图后重审 |
 | `threshold_conflict` | 对 UI 展示/布局判定不一致 | 人工判定 | 按预设规则自动裁决 |
 
-以下规则暂不启用，待有历史数据后再校准：
-- ~~confidence 低于阈值（如 0.7）~~ — AI 自报 confidence 可靠性有限，MVP 不依赖此值做自动决策
+补充规则（默认关闭，开启前需用历史数据校准）：
+- `confidence` 低于阈值（如 0.7）时触发人工复核
 
 
 ### 7.4 术语定义
@@ -516,11 +576,13 @@ MVP 阶段只保留一条自动触发规则：
 |------|------|
 | **审批（approval）** | 人工对测试计划的正式批准，阻断式，不批准则不执行。仅在用例生成后触发 |
 | **确认（confirm）** | 人工对测试报告的发布确认，**阻断式**，确认前报告不对外可见。与审批的区别：审批是对计划的批准，确认是对结果的认可 |
-| **裁决（arbitrate）** | 人工对双 agent 冲突的判定，按需触发 |
+| **裁决（arbitrate）** | 人工对关键判定冲突的裁决，按需触发 |
 
 ### 7.5 assertion 级判定要求
 
-每条 assertion 的判定结果必须包含：
+每条 assertion 的判定结果必须包含 `machine_verdict` 和 `evidence`。`agent_verdict` / `agent_reasoning` 仅 soft 类型必填，确定性断言可选。
+
+**确定性断言示例**（type = `element_visible`，无需 AI 判定字段）：
 
 ```json
 {
@@ -530,7 +592,6 @@ MVP 阶段只保留一条自动触发规则：
   "expected": "表格行数 > 0",
   "actual": "表格显示 10 行数据",
   "machine_verdict": "pass",
-  "agent_verdict": "pass",
   "evidence": {
     "screenshot_before": "evidence/screenshots/REQ-001-TC-001-step-2.png",
     "screenshot_after": "evidence/screenshots/REQ-001-TC-001-step-3.png",
@@ -541,14 +602,39 @@ MVP 阶段只保留一条自动触发规则：
       { "step": 3, "action": "assert", "target": "表格行数 > 0" }
     ],
     "trace_path": "evidence/traces/REQ-001-TC-001.zip"
+  }
+}
+```
+
+**AI 判定断言示例**（type = `soft`，必须包含 `agent_verdict` / `agent_reasoning`）：
+
+```json
+{
+  "assertion_id": "REQ-001-TC-002-A-001",
+  "type": "soft",
+  "description": "查询结果为空时应显示友好提示",
+  "expected": "空状态提示信息对用户友好",
+  "actual": "页面显示「暂无数据」配合空状态插图",
+  "machine_verdict": "pass",
+  "agent_verdict": "pass",
+  "evidence": {
+    "screenshot_before": "evidence/screenshots/REQ-001-TC-002-step-2.png",
+    "screenshot_after": "evidence/screenshots/REQ-001-TC-002-step-3.png",
+    "page_url": "/system/user",
+    "operation_steps": [
+      { "step": 1, "action": "fill", "target": "getByPlaceholder('请输入用户名')", "value": "不存在的用户" },
+      { "step": 2, "action": "click", "target": "getByRole('button', { name: '查询' })" },
+      { "step": 3, "action": "assert", "target": "空状态提示友好" }
+    ],
+    "trace_path": "evidence/traces/REQ-001-TC-002.zip"
   },
-  "agent_reasoning": "点击查询按钮后，表格成功加载并显示 10 行用户数据"
+  "agent_reasoning": "页面显示 Ant Design 标准空状态组件，包含插图和「暂无数据」文案，符合用户体验预期"
 }
 ```
 
 ## 8. 缺陷分析与报告（替代自动修复）
 
-当 Codex 审核确认存在缺陷后，Claude Code 读取本地源码进行深度分析（Phase 3）：
+当 Codex 审核确认存在缺陷后，Claude Code 读取本地源码进行深度分析：
 
 - **源码定位**：Claude Code 读取页面组件 / API 定义 / Controller/Service 等代码，定位缺陷根因
 - **报告内容**：每个缺陷包含——问题描述、影响范围、根因分析、涉及的源码文件和行号、修复建议、相关截图
@@ -558,15 +644,15 @@ MVP 阶段只保留一条自动触发规则：
 
 ## 9. 质量门禁指标
 
-### 9.1 门禁指标定义（按 Phase 启用）
+### 9.1 门禁指标定义
 
-| 指标 | 启用 Phase | 公式 | 门禁值 | 采集口径 | 计算时机 | 失败处置 |
-|------|-----------|------|--------|---------|---------|---------|
-| 需求覆盖率 RC | **Phase 1** | covered_reqs / total_reqs | ≥ 0.85（P0 = 1.00） | requirements.json 中 `testable=true` 的需求 | 用例生成后、执行前 | 阻断：补充用例后重新审批 |
-| 断言通过率 APR | **Phase 1** | passed / executed | ≥ 0.95 | execution-results.json 中所有确定性 assertion | 测试执行完成后 | 告警：标记未达标，不阻断报告生成 |
-| 用例不稳定率 FR | **Phase 2** | flaky / automated | ≤ 0.05 | 同一用例连续 3 次执行结果不一致标记为 flaky | 需 ≥3 次执行历史，不足则跳过 | 告警：标记 flaky 用例，建议人工复核 |
+| 指标 | 公式 | 门禁值 | 采集口径 | 计算时机 | 失败处置 |
+|------|------|--------|---------|---------|---------|
+| 需求覆盖率 RC | covered_reqs / total_reqs | ≥ 0.85（P0 = 1.00） | requirements.json 中 `testable=true` 的需求 | 用例生成后、执行前 | 阻断：补充用例后重新审批 |
+| 断言通过率 APR | passed / executed | ≥ 0.95 | execution-results.json 中所有确定性 assertion | 测试执行完成后 | 告警：标记未达标，不阻断报告生成 |
+| 用例不稳定率 FR | flaky / automated | ≤ 0.05 | 同一用例连续 3 次执行结果不一致标记为 flaky | 测试执行完成后（历史执行数 < 3 时标记为数据不足） | 告警：标记 flaky 用例，建议人工复核 |
 
-### 9.2 后续指标（Phase 3+，需历史数据）
+### 9.2 高级指标（需历史数据）
 
 | 指标 | 公式 | 门禁值 | 启用条件 |
 |------|------|--------|---------|
@@ -584,19 +670,24 @@ MVP 阶段只保留一条自动触发规则：
 | 断言类型 | 判定方式 | 复现性要求 | 示例 |
 |---------|---------|-----------|------|
 | **确定性断言** | `machine_verdict`（程序比对） | 同环境下 100% 可复现 | 表格行数 > 0、按钮文本 == "查询"、页面标题包含"用户管理" |
-| **AI 判定断言** | `agent_verdict`（AI 语义判断） | 标记为 `soft_assertion`，不要求严格复现 | "页面布局合理"、"错误提示信息对用户友好" |
+| **AI 判定断言** | `agent_verdict`（AI 语义判断） | 标记为 `soft` 类型，不要求严格复现 | "页面布局合理"、"错误提示信息对用户友好" |
 
 - 确定性断言结果不一致时，视为环境问题或代码变更，需排查
 - AI 判定断言仅作为参考，不纳入 APR 计算，不作为门禁阻断依据
 
-## 10. 分阶段实施
+## 10. 完整交付清单
 
-| Phase | 目标 | 核心内容 |
-|-------|------|---------|
-| **Phase 1 MVP** | 跑通 UI 查询测试链路 | Claude Code/Codex CLI 封装 + 源码索引器 + PRD 解析 + Playwright UI 测试（只读操作）+ Codex 结果审核 + 8 态状态机 + manifest.json + 基础 UI（项目配置 + 路由选择）+ 截图报告 + 人工确认发布 + 质量门禁（RC/APR） |
-| **Phase 2** | 写操作 + 稳定性 | 表单提交/创建/编辑测试 + 测试数据管理（造数+清理）+ FR 指标启用 + failed 恢复机制 + WebSocket 实时推送 + 审批 SLA |
-| **Phase 3** | 缺陷深挖 + 完整报告 | 源码定位分析 + 缺陷报告（含根因 + 修复建议）+ HTML/PDF 报告 + BullMQ 队列 + 高级门禁（DDP/DER）+ 状态机扩展 |
-| **Phase 4** | 优化扩展 | 并行执行 + 历史分析 + Docker 部署 + CI/CD 集成 + Prompt 版本管理 |
+| 领域 | 交付内容 |
+|------|---------|
+| 测试能力 | 支持读写操作测试：查询、浏览、详情、筛选、分页、创建、编辑、删除、提交 |
+| 执行引擎 | 生成独立 Playwright JS 脚本并通过 `node` 执行；保留 MCP 调试模式 |
+| AI 协作 | Claude Code 负责解析/生成/执行/缺陷分析；Codex 负责用例与结果双重审核 |
+| 缺陷报告 | 输出缺陷现象、证据、源码定位、根因分析、修复建议与严重级别 |
+| 编排能力 | 8 态状态机 + failed reason_code + 幂等键防重 |
+| 质量门禁 | RC/APR/FR 计算与展示；DDP/DER 在数据满足时启用 |
+| 可观测性 | 每步截图、trace、运行元数据、环境指纹、产物校验和 |
+| 交互界面 | 项目配置、路由选择、执行监控、审批、报告确认、结果查看 |
+| 集成能力 | CLI 能力探测、降级策略、WebSocket 推送、可接入 CI/CD |
 
 ## 11. 验证方案
 
@@ -724,11 +815,11 @@ PRD 解析后的结构化需求，是整个链路的源头。
 | `expected` | string | 是 | 预期结果 |
 | `actual` | string | 是 | 实际结果 |
 | `machine_verdict` | enum | 是 | `pass` / `fail` / `error`，程序自动比对结果 |
-| `agent_verdict` | enum | 是 | `pass` / `fail` / `error`，AI agent 判定结果 |
+| `agent_verdict` | enum | soft 类型必填 | `pass` / `fail` / `error`，AI agent 判定结果。确定性断言（element_visible 等）选填，soft 类型必填 |
 | `evidence.screenshot` | string | 是 | 断言时刻的截图路径 |
 | `evidence.page_url` | string | 是 | 当前页面相对路径（如 `/system/user`，base_url 在 environment 中） |
 | `evidence.trace_path` | string | 否 | Playwright trace 文件路径 |
-| `agent_reasoning` | string | 是 | AI 判定依据，Codex 审核时的关键输入 |
+| `agent_reasoning` | string | soft 类型必填 | AI 判定依据，Codex 审核时的关键输入。确定性断言选填，soft 类型必填 |
 
 **ID 命名规范：**
 
@@ -841,7 +932,7 @@ Codex 对执行结果的审核意见，是交叉验证的核心输入。同样�
 | `review_type` | enum | 是 | `test_cases`（用例审核）/ `execution_results`（结果审核） |
 | `reviews[].subject_id` | string | 是 | 被审核对象的 ID：结果审核时为 assertion_id，用例审核时为 case_id |
 | `reviews[].subject_type` | enum | 是 | `assertion`（结果审核）/ `case`（用例审核） |
-| `reviews[].original_verdict` | enum \| null | 条件必填 | Claude Code 的原始判定：`pass` / `fail` / `error`。**结果审核时必填，用例审核时为 null**（用例阶段尚未执行） |
+| `reviews[].original_verdict` | enum \| null | 条件必填 | 原始判定：确定性断言填 `machine_verdict`，soft 断言填 `agent_verdict`。枚举值 `pass` / `fail` / `error`。**结果审核时必填，用例审核时为 null**（用例阶段尚未执行） |
 | `reviews[].review_verdict` | enum | 是 | Codex 审核意见：`agree` / `disagree` / `uncertain` |
 | `reviews[].conflict_type` | enum | 否 | 冲突类型（仅 disagree 时）：`fact_conflict` / `evidence_missing` / `threshold_conflict` |
 | `reviews[].reasoning` | string | 是 | 审核依据 |
@@ -851,18 +942,20 @@ Codex 对执行结果的审核意见，是交叉验证的核心输入。同样�
 
 | # | 决策项 | 结论 | 理由 |
 |---|--------|------|------|
-| D1 | MVP 测试类型 | **UI 测试（Playwright）** | 业务数据复杂，API 造数成本高；UI 查询操作只读，利用已有数据即可 |
+| D1 | 测试类型 | **UI 测试（Playwright）** | 业务数据复杂，API 造数成本高；UI 更贴近用户行为与验收口径 |
 | D2 | 脚本生成方式 | **源码辅助生成** | 提供路由表 + 页面组件 + API 定义，AI 生成的选择器和断言更准确 |
-| D3 | MVP 操作范围 | **只读操作为主** | 查询/浏览/搜索/筛选/分页，写操作放 Phase 2 |
+| D3 | 操作范围 | **覆盖读写操作** | 查询/浏览/搜索/筛选/分页 + 创建/编辑/删除/提交，统一纳入自动化 |
 | D4 | 人工审批保留几个节点 | **审批 1 个 + 确认 1 个** | 用例生成后审批，报告产出后确认发布 |
-| D5 | 冲突时默认策略 | **MVP 直接人工，不自动重跑** | 自动重跑需先定义"什么条件下重跑有意义"，MVP 无此数据 |
+| D5 | 冲突时默认策略 | **直接人工裁决，不自动重跑** | 先保证判定可信度，重跑策略作为可选优化能力 |
 | D6 | 门禁失败是否阻断 | **RC 阻断，APR/FR 仅告警** | 覆盖率不达标必须补用例；通过率/稳定率可能是环境问题 |
+| D7 | 测试执行方式 | **生成 JS 脚本 + `node` 直接执行** | 实测对比：脚本方式 30s/46 断言 vs MCP 逐步调用 15min/37 断言。Playwright MCP 仅用于探索/调试 |
 
 ## 17. 待讨论事项
 
 - [ ] 源码索引器是自动解析路由表，还是需要人工维护路由→源码映射？
 - [ ] Playwright 执行失败（元素未找到）时，是否自动尝试备选选择器？
 - [ ] 截图存储策略：全部保留还是只保留失败用例的截图？
-- [ ] MVP 阶段 Codex 审核是否每次都触发，还是只在 fail 时触发（节省 API 调用）？
+- [ ] Codex 审核是否每次都触发，还是只在 fail 时触发（节省 API 调用）？
 - [ ] 报告人工确认环节的具体交互形式（UI 按钮 / CLI 命令 / 邮件通知）？
 - [ ] 是否需要支持 Playwright trace viewer 在线查看？
+- [ ] AI 生成脚本的安全边界：是否需要限制可访问域名/文件路径、禁用危险 Node API（如 fs.rm、child_process）？可考虑 Node.js `--experimental-permission` 沙箱

@@ -44,7 +44,7 @@ smart-test-agent/
 - **Monorepo**: Turborepo
 - **Frontend**: React 18 + Ant Design 5 + Vite
 - **Backend**: Express + tRPC + Socket.IO
-- **Database**: PostgreSQL + Prisma
+- **Database**: SQLite + Prisma
 - **Testing**: Playwright
 - **AI Integration**: Claude Code CLI + Codex CLI
 
@@ -54,7 +54,7 @@ smart-test-agent/
 
 - Node.js >= 18.0.0
 - pnpm >= 9.0.0
-- PostgreSQL (for database)
+- SQLite (embedded, no installation required)
 
 ### Installation
 
