@@ -13,13 +13,13 @@
     - 配置 turbo.json 和 pnpm-workspace.yaml
     - _Requirements: 15.1_
   
-  - [-] 1.2 配置 TypeScript 和共享类型
+  - [x] 1.2 配置 TypeScript 和共享类型
     - 创建 packages/shared/types 目录
     - 定义核心类型：TargetProfile、TestRun、TestCase、Assertion 等
     - 配置 tsconfig.json 继承关系
     - _Requirements: 1.1, 15.2_
   
-  - [~] 1.3 配置 Prisma 数据库层
+  - [x] 1.3 配置 Prisma 数据库层
     - 创建 packages/db 包
     - 编写 Prisma schema（Project、TargetProfile、TestRun、Requirement、TestCase、Assertion）
     - 配置 SQLite 连接

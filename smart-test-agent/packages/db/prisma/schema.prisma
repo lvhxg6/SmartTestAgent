@@ -1,5 +1,7 @@
-// Prisma schema placeholder
-// Full schema will be defined in task 1.3
+// Prisma schema for PRD-Based UI Testing Agent System
+// Database: SQLite
+// Note: SQLite does not support native JSON type, so complex objects are stored as String (JSON serialized)
+// Application code should handle JSON serialization/deserialization
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +10,117 @@ generator client {
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+// Project model - represents a test project
+model Project {
+  id            String         @id @default(uuid())
+  name          String
+  description   String?
+  targetProfile TargetProfile?
+  testRuns      TestRun[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// TargetProfile model - configuration for test target
+// Stores browser config, login config, routes, and UI framework settings
+// Complex objects are stored as JSON strings
+model TargetProfile {
+  id                String   @id @default(uuid())
+  projectId         String   @unique
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  baseUrl           String
+  browserConfig     String   // JSON: BrowserConfig { ignoreHTTPSErrors, viewport, locale, timeoutMs }
+  loginConfig       String   // JSON: LoginConfig { loginUrl, usernameSelector, passwordSelector, submitSelector, credentials, successIndicator }
+  allowedRoutes     String   // JSON: String[] - routes allowed for testing
+  deniedRoutes      String   // JSON: String[] - routes denied for testing
+  allowedOperations String   // JSON: String[] - operations allowed (query, view_detail, create, edit, delete, etc.)
+  deniedOperations  String   // JSON: String[] - operations denied
+  sourceCodeConfig  String   // JSON: SourceCodeConfig { frontendRoot, routerFile, pageDir, apiDir }
+  uiFramework       String   // 'antd' | 'element-ui' | 'custom'
+  antdQuirks        String?  // JSON: AntdQuirksConfig { buttonTextSpace, selectType, modalCloseSelector }
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// TestRun model - represents a single test execution run
+model TestRun {
+  id              String        @id @default(uuid())
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  state           String        // TestRunState: created, parsing, generating, awaiting_approval, executing, codex_reviewing, report_ready, completed, failed
+  reasonCode      String?       // ReasonCode: retry_exhausted, agent_timeout, approval_timeout, confirm_timeout, verdict_conflict, playwright_error, internal_error
+  prdPath         String
+  testedRoutes    String        // JSON: String[] - routes being tested
+  workspacePath   String
+  envFingerprint  String        // JSON: { service_version, git_commit, config_hash, browser_version }
+  agentVersions   String        // JSON: { claudeCode: string, codex: string }
+  promptVersions  String        // JSON: { prdParse: string, uiTestExecute: string, reviewResults: string }
+  decisionLog     String        // JSON: Array of decision log entries
+  qualityMetrics  String?       // JSON: { rc: QualityMetric, apr: QualityMetric, fr?: QualityMetric }
+  reportPath      String?       // Path to generated Markdown report
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  completedAt     DateTime?
+
+  requirements    Requirement[]
+  testCases       TestCase[]
+  assertions      Assertion[]
+}
+
+// Requirement model - extracted requirements from PRD
+model Requirement {
+  id                 String     @id @default(uuid())
+  runId              String
+  run                TestRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  requirementId      String     // External requirement ID (e.g., REQ-001)
+  title              String
+  description        String
+  priority           String     // P0, P1, P2
+  testable           Boolean
+  route              String
+  acceptanceCriteria String     // JSON: String[] - list of acceptance criteria
+  sourceSection      String?    // Section in PRD where requirement was found
+  tags               String     // JSON: String[] - tags for categorization
+  testCases          TestCase[]
+}
+
+// TestCase model - generated test cases
+model TestCase {
+  id              String      @id @default(uuid())
+  runId           String
+  run             TestRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  requirementId   String
+  requirement     Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  caseId          String      // External case ID (e.g., TC-001)
+  route           String
+  title           String
+  precondition    String
+  steps           String      // JSON: Array of TestStep objects
+  dataPreparation String?     // JSON: Array of DataStep objects for test data setup
+  dataCleanup     String?     // JSON: Array of DataStep objects for test data cleanup
+  status          String?     // Test execution status
+  assertions      Assertion[]
+}
+
+// Assertion model - test assertions with verdicts
+model Assertion {
+  id             String    @id @default(uuid())
+  runId          String
+  run            TestRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  caseId         String
+  testCase       TestCase  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  assertionId    String    // External assertion ID (e.g., A-001)
+  type           String    // element_visible, text_content, element_count, navigation, soft
+  description    String
+  expected       String
+  actual         String?
+  machineVerdict String?   // pass, fail, error (for deterministic assertions)
+  agentVerdict   String?   // pass, fail (for soft assertions, from Claude Code)
+  agentReasoning String?   // Reasoning for agent verdict
+  reviewVerdict  String?   // agree, disagree, uncertain (from Codex review)
+  conflictType   String?   // fact_conflict, evidence_missing, threshold_conflict
+  finalVerdict   String?   // Final arbitrated verdict
+  evidencePath   String?   // Path to screenshot or other evidence
 }
