@@ -13,7 +13,23 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true,
-    "incremental": true
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@smart-test-agent/shared": ["packages/shared/src/index.ts"],
+      "@smart-test-agent/shared/*": ["packages/shared/src/*"],
+      "@smart-test-agent/core": ["packages/core/src/index.ts"],
+      "@smart-test-agent/core/*": ["packages/core/src/*"],
+      "@smart-test-agent/db": ["packages/db/src/index.ts"],
+      "@smart-test-agent/playwright-runner": ["packages/playwright-runner/src/index.ts"]
+    }
   },
-  "exclude": ["node_modules", "dist", "coverage"]
+  "exclude": ["node_modules", "dist", "coverage"],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/db" },
+    { "path": "packages/core" },
+    { "path": "packages/playwright-runner" },
+    { "path": "apps/server" }
+  ]
 }
