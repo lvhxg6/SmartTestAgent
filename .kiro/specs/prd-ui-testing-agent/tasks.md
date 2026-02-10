@@ -91,32 +91,32 @@
     - **Property 7: Framework Detection Accuracy**
     - **Validates: Requirements 2.1, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9**
 
-- [ ] 5. CLI Adapter 实现
-  - [ ] 5.1 实现 CLI 能力探测
+- [x] 5. CLI Adapter 实现
+  - [x] 5.1 实现 CLI 能力探测
     - 创建 packages/core/cli-adapter 模块
     - 探测 claude --help 输出
     - 探测 codex --help 输出
     - 构建能力映射
     - _Requirements: 16.1, 16.2_
   
-  - [ ] 5.2 实现 Claude Code 调用封装
+  - [x] 5.2 实现 Claude Code 调用封装
     - 支持 stream-json 和 json 输出格式
     - 支持 allowed-tools 参数
     - 实现降级策略
     - _Requirements: 16.3, 16.4_
   
-  - [ ] 5.3 实现 Codex 调用封装
+  - [x] 5.3 实现 Codex 调用封装
     - 支持 suggest-mode
     - 支持 output-schema
     - 支持图片输入
     - 实现降级策略
     - _Requirements: 16.3, 16.4_
   
-  - [ ] 5.4 实现降级决策记录
+  - [x] 5.4 实现降级决策记录
     - 记录到 manifest.json
     - _Requirements: 16.5_
   
-  - [ ] 5.5 编写 CLI Adapter 属性测试
+  - [x] 5.5 编写 CLI Adapter 属性测试
     - **Property 33: CLI Capability Detection**
     - **Property 34: CLI Degradation Behavior**
     - **Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5**
