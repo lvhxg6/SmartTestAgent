@@ -7,8 +7,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc.js';
 import { TRPCError } from '@trpc/server';
-import { prisma, toJsonString, fromJsonString, fromJsonStringNullable } from '@smart-test-agent/db';
-import { TargetProfileManager, validateTargetProfile } from '@smart-test-agent/core';
+import { prisma, toJsonString, fromJsonString } from '@smart-test-agent/db';
 
 /**
  * Browser config schema
