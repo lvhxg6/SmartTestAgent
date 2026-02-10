@@ -7,7 +7,6 @@ import React from 'react';
 import { Layout as AntLayout, Menu, Typography } from 'antd';
 import {
   DashboardOutlined,
-  SettingOutlined,
   PlayCircleOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
@@ -24,11 +23,6 @@ const menuItems = [
     key: '/',
     icon: <DashboardOutlined />,
     label: '项目列表',
-  },
-  {
-    key: '/config',
-    icon: <SettingOutlined />,
-    label: '配置管理',
   },
   {
     key: '/runs',

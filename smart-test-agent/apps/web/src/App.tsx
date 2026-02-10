@@ -46,7 +46,6 @@ function App() {
             <Routes>
               <Route path="/" element={<Layout />}>
                 <Route index element={<ProjectList />} />
-                <Route path="config" element={<ProjectList />} />
                 <Route path="config/:projectId" element={<ProjectConfig />} />
                 <Route path="routes/:projectId" element={<RouteSelection />} />
                 <Route path="runs" element={<TestRunList />} />
