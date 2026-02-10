@@ -24,7 +24,7 @@
     - 新增测试：不含 deniedRoutes 的请求正常通过
     - _Requirements: 4.1, 4.3_
 
-  - [~]* 1.3 编写 property test：loginUrl 接受任意字符串
+  - [x]* 1.3 编写 property test：loginUrl 接受任意字符串
     - **Property 2: loginUrl accepts hash route strings**
     - **Validates: Requirements 4.1, 4.2**
 

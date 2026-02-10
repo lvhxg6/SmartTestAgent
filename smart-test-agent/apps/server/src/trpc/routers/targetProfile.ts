@@ -27,7 +27,7 @@ const browserConfigSchema = z.object({
  * Login config schema
  * @see Requirements 1.1, 1.3
  */
-const loginConfigSchema = z.object({
+export const loginConfigSchema = z.object({
   loginUrl: z.string(),
   usernameSelector: z.string(),
   passwordSelector: z.string(),
