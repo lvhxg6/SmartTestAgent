@@ -211,7 +211,7 @@ export const ProjectConfig: React.FC = () => {
           >
             <Input placeholder="/#/login" />
           </Form.Item>
-          <Space size="large" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name={['login', 'usernameSelector']} label="用户名选择器" style={{ flex: 1 }}>
               <Input placeholder="input[placeholder='请输入用户名']" />
             </Form.Item>
@@ -221,15 +221,15 @@ export const ProjectConfig: React.FC = () => {
             <Form.Item name={['login', 'submitSelector']} label="提交按钮选择器" style={{ flex: 1 }}>
               <Input placeholder="button:has-text('登录')" />
             </Form.Item>
-          </Space>
-          <Space size="large" style={{ width: '100%' }}>
+          </div>
+          <div style={{ display: 'flex', gap: 16 }}>
             <Form.Item name={['login', 'credentials', 'username']} label="用户名" style={{ flex: 1 }}>
               <Input placeholder="$TEST_USERNAME" />
             </Form.Item>
             <Form.Item name={['login', 'credentials', 'password']} label="密码" style={{ flex: 1 }}>
               <Input.Password placeholder="$TEST_PASSWORD" />
             </Form.Item>
-          </Space>
+          </div>
           <Form.Item name={['login', 'successIndicator']} label="登录成功标识">
             <Input placeholder="/#/myWorkSatp" />
           </Form.Item>
