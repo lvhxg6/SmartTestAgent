@@ -398,19 +398,19 @@
     - _Requirements: 17.4_
 
 - [ ] 21. Prompt 模板实现
-  - [ ] 21.1 编写 PRD 解析 Prompt
+  - [x] 21.1 编写 PRD 解析 Prompt
     - prd-parse.md 模板
     - 输入：PRD 原文 + 路由表 + 页面源码 + API 定义
     - 输出：requirements.json + test-cases.json
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.7, 4.8, 4.9, 4.11_
   
-  - [ ] 21.2 编写测试执行 Prompt
+  - [x] 21.2 编写测试执行 Prompt
     - ui-test-execute.md 模板
     - 输入：test-cases.json + target-profile.json
     - 输出：test-{run_id}.js + execution-results.json
     - _Requirements: 7.1, 7.2_
   
-  - [ ] 21.3 编写结果审核 Prompt
+  - [x] 21.3 编写结果审核 Prompt
     - review-results.md 模板
     - 输入：test-cases.json + execution-results.json + 截图 + PRD
     - 输出：codex-review-results.json
