@@ -128,7 +128,7 @@ export const ProjectConfig: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: 16 }}>
         <Title level={4}>项目配置: {project?.name}</Title>
         <Text type="secondary">配置测试目标的基本信息、登录凭证和测试范围</Text>
