@@ -199,16 +199,16 @@
     - **Property 17: Test Script Structure Completeness**
     - **Validates: Requirements 4.2, 4.3, 4.4, 7.1, 7.2**
 
-- [ ] 9. Checkpoint - 确保执行层测试通过
+- [x] 9. Checkpoint - 确保执行层测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 10. 交叉验证与裁决实现
-  - [ ] 10.1 实现 Codex 审核结果解析
+- [x] 10. 交叉验证与裁决实现
+  - [x] 10.1 实现 Codex 审核结果解析
     - 解析 codex-review-results.json
     - 提取 review_verdict 和 conflict_type
     - _Requirements: 8.2, 8.3, 8.4_
   
-  - [ ] 10.2 实现交叉验证裁决逻辑
+  - [x] 10.2 实现交叉验证裁决逻辑
     - 确定性断言：machine_verdict + agree → 维持
     - 确定性断言：machine_verdict + disagree → failed
     - 确定性断言：machine_verdict + uncertain → 维持
@@ -216,12 +216,12 @@
     - soft 断言：agent_verdict + disagree/uncertain → failed
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
   
-  - [ ] 10.3 实现 P0 覆盖检查
+  - [x] 10.3 实现 P0 覆盖检查
     - 验证所有 P0 需求有对应测试用例
     - 输出 p0_coverage_check 结构
     - _Requirements: 5.4, 5.5_
   
-  - [ ] 10.4 编写交叉验证属性测试
+  - [x] 10.4 编写交叉验证属性测试
     - **Property 23: Cross-Validation Arbitration Rules**
     - **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
 
