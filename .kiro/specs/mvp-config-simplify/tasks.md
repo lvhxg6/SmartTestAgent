@@ -6,7 +6,7 @@
 
 ## Tasks
 
-- [ ] 1. 后端 Schema 和校验逻辑修改
+- [x] 1. 后端 Schema 和校验逻辑修改
   - [x] 1.1 修改 targetProfile.ts 中的 loginConfigSchema、sourceCodeConfigSchema、targetProfileInputSchema
     - loginUrl: `z.string().url()` → `z.string()`
     - sourceCodeConfigSchema: `{ frontendRoot, routerFile, pageDir, apiDir }` → `{ routeFiles: z.array(z.string()), pageFiles: z.array(z.string()) }`
@@ -40,11 +40,11 @@
     - **Property 5: Target profile JSON serialization round-trip**
     - **Validates: Requirements 6.1, 6.2**
 
-- [~] 2. Checkpoint - 确保后端测试全部通过
+- [x] 2. Checkpoint - 确保后端测试全部通过
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. 新增文件上传接口
-  - [~] 3.1 安装 multer 依赖并创建 upload 路由模块
+  - [-] 3.1 安装 multer 依赖并创建 upload 路由模块
     - 在 apps/server 中安装 multer 和 @types/multer
     - 创建 `apps/server/src/routes/upload.ts`，实现 `POST /api/upload/:projectId`
     - multer 配置：destination 按 projectId + category 隔离，limits 单文件 50MB
