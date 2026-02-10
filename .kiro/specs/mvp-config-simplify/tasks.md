@@ -44,7 +44,7 @@
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. 新增文件上传接口
-  - [-] 3.1 安装 multer 依赖并创建 upload 路由模块
+  - [x] 3.1 安装 multer 依赖并创建 upload 路由模块
     - 在 apps/server 中安装 multer 和 @types/multer
     - 创建 `apps/server/src/routes/upload.ts`，实现 `POST /api/upload/:projectId`
     - multer 配置：destination 按 projectId + category 隔离，limits 单文件 50MB
@@ -52,11 +52,11 @@
     - 错误处理：缺少 projectId 返回 400，文件过大返回 413
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-  - [~] 3.2 在 index.ts 中挂载 upload 路由
+  - [x] 3.2 在 index.ts 中挂载 upload 路由
     - 在 tRPC 中间件之前挂载 `app.use('/api/upload', uploadRouter)`
     - _Requirements: 3.1_
 
-  - [~]* 3.3 编写 upload 接口单元测试
+  - [x]* 3.3 编写 upload 接口单元测试
     - 测试文件存储到正确目录
     - 测试响应包含正确的文件路径信息
     - 测试缺少 projectId 返回 400
