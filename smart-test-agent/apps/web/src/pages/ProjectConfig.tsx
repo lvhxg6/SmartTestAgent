@@ -145,8 +145,24 @@ export const ProjectConfig: React.FC = () => {
             locale: 'zh-CN',
             timeoutMs: 30000,
           },
+          login: {
+            loginUrl: '/#/login',
+            usernameSelector: "input[placeholder='请输入用户名']",
+            passwordSelector: "input[placeholder='请输入密码']",
+            submitSelector: "button:has-text('登录')",
+            credentials: {
+              username: '$TEST_USERNAME',
+              password: '$TEST_PASSWORD',
+            },
+            successIndicator: '/#/myWorkSatp',
+          },
           uiFramework: 'antd',
           allowedOperations: ['query', 'view_detail'],
+          antdQuirks: {
+            buttonTextSpace: true,
+            selectType: 'custom',
+            modalCloseSelector: '.ant-modal-close',
+          },
         }}
       >
         <Card title="基本配置" style={{ marginBottom: 16 }}>
@@ -191,31 +207,31 @@ export const ProjectConfig: React.FC = () => {
           <Form.Item
             name={['login', 'loginUrl']}
             label="登录页面 URL"
-            rules={[{ required: true, type: 'url' }]}
+            rules={[{ required: true, message: '请输入登录页面 URL' }]}
           >
-            <Input placeholder="https://example.com/login" />
+            <Input placeholder="/#/login" />
           </Form.Item>
           <Space size="large" style={{ width: '100%' }}>
             <Form.Item name={['login', 'usernameSelector']} label="用户名选择器" style={{ flex: 1 }}>
-              <Input placeholder="#username" />
+              <Input placeholder="input[placeholder='请输入用户名']" />
             </Form.Item>
             <Form.Item name={['login', 'passwordSelector']} label="密码选择器" style={{ flex: 1 }}>
-              <Input placeholder="#password" />
+              <Input placeholder="input[placeholder='请输入密码']" />
             </Form.Item>
             <Form.Item name={['login', 'submitSelector']} label="提交按钮选择器" style={{ flex: 1 }}>
-              <Input placeholder="#submit" />
+              <Input placeholder="button:has-text('登录')" />
             </Form.Item>
           </Space>
           <Space size="large" style={{ width: '100%' }}>
             <Form.Item name={['login', 'credentials', 'username']} label="用户名" style={{ flex: 1 }}>
-              <Input placeholder="测试账号用户名" />
+              <Input placeholder="$TEST_USERNAME" />
             </Form.Item>
             <Form.Item name={['login', 'credentials', 'password']} label="密码" style={{ flex: 1 }}>
-              <Input.Password placeholder="测试账号密码" />
+              <Input.Password placeholder="$TEST_PASSWORD" />
             </Form.Item>
           </Space>
           <Form.Item name={['login', 'successIndicator']} label="登录成功标识">
-            <Input placeholder=".dashboard 或登录成功后页面的特征选择器" />
+            <Input placeholder="/#/myWorkSatp" />
           </Form.Item>
         </Card>
 
