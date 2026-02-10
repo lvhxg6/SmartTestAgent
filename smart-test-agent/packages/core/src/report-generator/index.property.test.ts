@@ -24,16 +24,27 @@ describe('Property 24: Defect Report Aggregation', () => {
   const verdictArb = fc.constantFrom('pass', 'fail', 'error') as fc.Arbitrary<'pass' | 'fail' | 'error'>;
   const severityArb = fc.constantFrom('critical', 'major', 'minor', 'suggestion') as fc.Arbitrary<DefectSeverity>;
 
-  const assertionArb = fc.record({
-    id: fc.uuid(),
-    assertionId: fc.string({ minLength: 3, maxLength: 10 }).map(s => `A${s.replace(/[^a-zA-Z0-9]/g, '')}`),
-    runId: fc.constant('run-1'),
-    caseId: fc.string({ minLength: 3, maxLength: 10 }).map(s => `TC${s.replace(/[^a-zA-Z0-9]/g, '')}`),
-    type: fc.constantFrom('element_visible', 'text_content', 'navigation', 'soft') as fc.Arbitrary<'element_visible' | 'text_content' | 'navigation' | 'soft'>,
-    description: fc.string({ minLength: 5, maxLength: 50 }),
-    expected: fc.string({ minLength: 1, maxLength: 20 }),
-    finalVerdict: verdictArb,
-  }) as fc.Arbitrary<Assertion>;
+  // Generate assertions with unique IDs using index
+  const assertionsArb = fc.array(
+    fc.record({
+      type: fc.constantFrom('element_visible', 'text_content', 'navigation', 'soft') as fc.Arbitrary<'element_visible' | 'text_content' | 'navigation' | 'soft'>,
+      description: fc.string({ minLength: 5, maxLength: 50 }),
+      expected: fc.string({ minLength: 1, maxLength: 20 }),
+      finalVerdict: verdictArb,
+    }),
+    { minLength: 0, maxLength: 20 }
+  ).map((specs) =>
+    specs.map((spec, index): Assertion => ({
+      id: `id-${index}`,
+      assertionId: `A-${String(index).padStart(3, '0')}`,
+      runId: 'run-1',
+      caseId: `TC-${String(index).padStart(3, '0')}`,
+      type: spec.type,
+      description: spec.description,
+      expected: spec.expected,
+      finalVerdict: spec.finalVerdict,
+    }))
+  );
 
   /**
    * Property: Defect count equals failed assertion count
@@ -41,7 +52,7 @@ describe('Property 24: Defect Report Aggregation', () => {
   it('should aggregate exactly all failed assertions', () => {
     fc.assert(
       fc.property(
-        fc.array(assertionArb, { minLength: 0, maxLength: 20 }),
+        assertionsArb,
         (assertions) => {
           const defects = aggregateDefects(assertions, [], []);
           const failedCount = assertions.filter(a => a.finalVerdict === 'fail').length;
@@ -60,7 +71,7 @@ describe('Property 24: Defect Report Aggregation', () => {
   it('should create defect for each failed assertion', () => {
     fc.assert(
       fc.property(
-        fc.array(assertionArb, { minLength: 1, maxLength: 20 }),
+        assertionsArb.filter(arr => arr.length > 0),
         (assertions) => {
           const defects = aggregateDefects(assertions, [], []);
           const failedAssertionIds = assertions
@@ -83,7 +94,7 @@ describe('Property 24: Defect Report Aggregation', () => {
   it('should not create defects for passed or error assertions', () => {
     fc.assert(
       fc.property(
-        fc.array(assertionArb, { minLength: 1, maxLength: 20 }),
+        assertionsArb.filter(arr => arr.length > 0),
         (assertions) => {
           const defects = aggregateDefects(assertions, [], []);
           const nonFailedAssertionIds = assertions
@@ -106,7 +117,7 @@ describe('Property 24: Defect Report Aggregation', () => {
   it('should generate unique defect IDs', () => {
     fc.assert(
       fc.property(
-        fc.array(assertionArb, { minLength: 1, maxLength: 20 }),
+        assertionsArb.filter(arr => arr.length > 0),
         (assertions) => {
           const defects = aggregateDefects(assertions, [], []);
           const defectIds = defects.map(d => d.id);

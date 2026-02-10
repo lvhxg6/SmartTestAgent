@@ -240,27 +240,27 @@
     - **Property 24: Defect Report Aggregation**
     - **Validates: Requirements 10.1**
 
-- [ ] 12. Quality Gate 实现
-  - [ ] 12.1 实现 RC 计算
+- [x] 12. Quality Gate 实现
+  - [x] 12.1 实现 RC 计算
     - covered_reqs / total_reqs（仅 testable=true）
     - _Requirements: 11.1_
   
-  - [ ] 12.2 实现 APR 计算
+  - [x] 12.2 实现 APR 计算
     - passed / executed（仅确定性断言）
     - _Requirements: 11.2_
   
-  - [ ] 12.3 实现 FR 计算
+  - [x] 12.3 实现 FR 计算
     - 需要 ≥3 次历史执行
     - flaky / automated
     - _Requirements: 11.5_
   
-  - [ ] 12.4 实现门禁阈值检查
+  - [x] 12.4 实现门禁阈值检查
     - RC < 0.85 或 P0 未覆盖 → 阻断
     - APR < 0.95 → 告警
     - FR > 0.05 → 告警 + 标记 flaky
     - _Requirements: 11.3, 11.4, 11.6_
   
-  - [ ] 12.5 编写 Quality Gate 属性测试
+  - [x] 12.5 编写 Quality Gate 属性测试
     - **Property 26: Requirements Coverage Calculation**
     - **Property 27: Assertion Pass Rate Calculation**
     - **Validates: Requirements 11.1, 11.2**
