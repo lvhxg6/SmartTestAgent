@@ -67,10 +67,9 @@ export const TestRunList: React.FC = () => {
   // Fetch projects for selection
   const { data: projects } = trpc.project.list.useQuery({});
 
-  // Fetch test runs
+  // Fetch test runs - when no project selected, fetch all
   const { data, isLoading, refetch } = trpc.testRun.list.useQuery(
-    { projectId: selectedProject! },
-    { enabled: !!selectedProject }
+    selectedProject ? { projectId: selectedProject } : {},
   );
 
   // Create mutation

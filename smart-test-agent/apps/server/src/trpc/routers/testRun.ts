@@ -52,7 +52,7 @@ const createTestRunInputSchema = z.object({
  * List options schema
  */
 const listOptionsSchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().uuid().optional(),
   skip: z.number().int().min(0).default(0),
   take: z.number().int().min(1).max(100).default(20),
   state: testRunStateSchema.optional(),
@@ -155,27 +155,32 @@ function addDecisionLogEntry(
  */
 export const testRunRouter = router({
   /**
-   * List test runs for a project
+   * List test runs for a project (or all if no projectId)
    */
   list: publicProcedure
     .input(listOptionsSchema)
     .query(async ({ input }) => {
       const { projectId, skip, take, state } = input;
 
-      // Check if project exists
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-      });
-
-      if (!project) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Project with id ${projectId} not found`,
+      // If projectId provided, check if project exists
+      if (projectId) {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
         });
+
+        if (!project) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Project with id ${projectId} not found`,
+          });
+        }
       }
 
       // Build where clause
-      const where: any = { projectId };
+      const where: any = {};
+      if (projectId) {
+        where.projectId = projectId;
+      }
       if (state) {
         where.state = state;
       }
