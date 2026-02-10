@@ -16,6 +16,7 @@ import Layout from './components/Layout';
 // Pages
 import ProjectList from './pages/ProjectList';
 import ProjectConfig from './pages/ProjectConfig';
+import RouteSelection from './pages/RouteSelection';
 import TestRunList from './pages/TestRunList';
 import TestRunDetail from './pages/TestRunDetail';
 import ReportView from './pages/ReportView';
@@ -46,6 +47,7 @@ function App() {
               <Route path="/" element={<Layout />}>
                 <Route index element={<ProjectList />} />
                 <Route path="config/:projectId" element={<ProjectConfig />} />
+                <Route path="routes/:projectId" element={<RouteSelection />} />
                 <Route path="runs" element={<TestRunList />} />
                 <Route path="runs/:runId" element={<TestRunDetail />} />
                 <Route path="reports" element={<TestRunList />} />

@@ -290,6 +290,9 @@ export const ProjectConfig: React.FC = () => {
             <Button onClick={handleValidate} loading={validateMutation.isLoading}>
               验证配置
             </Button>
+            <Button type="default" onClick={() => navigate(`/routes/${projectId}`)}>
+              选择路由
+            </Button>
             <Button onClick={() => navigate('/')}>返回</Button>
           </Space>
         </Form.Item>
