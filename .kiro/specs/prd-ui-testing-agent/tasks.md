@@ -30,7 +30,7 @@
     - 测试关联关系
     - _Requirements: 15.4_
 
-- [ ] 2. Target Profile Manager 实现
+- [x] 2. Target Profile Manager 实现
   - [x] 2.1 实现 Target Profile 配置接口
     - 创建 packages/core/target-profile 模块
     - 实现 TargetProfileManager 类
@@ -152,15 +152,15 @@
     - **Property 15: State Machine Idempotency**
     - **Validates: Requirements 6.1, 6.3, 6.4, 6.5, 14.1, 14.2, 14.4, 14.5**
 
-- [ ] 8. Playwright Runner 实现
-  - [ ] 8.1 实现测试脚本生成器
+- [x] 8. Playwright Runner 实现
+  - [x] 8.1 实现测试脚本生成器
     - 创建 packages/playwright-runner 包
     - 生成完整的 Playwright JS 测试脚本
     - 包含浏览器启动、登录、导航、操作、截图、断言、结果输出
     - 支持写操作（create、edit、delete）
     - _Requirements: 7.1, 7.2_
   
-  - [ ] 8.2 实现 Ant Design 选择器策略
+  - [x] 8.2 实现 Ant Design 选择器策略
     - 两字中文按钮使用正则（/关.*闭/）
     - 三字及以上按钮使用精确匹配
     - Select 组件使用 .ant-select-selector + .ant-select-item-option
@@ -168,32 +168,32 @@
     - 视口外元素使用 scrollIntoViewIfNeeded()
     - _Requirements: 4.3, 4.4, 4.5, 4.6, 4.10_
   
-  - [ ] 8.3 实现选择器优先级逻辑
+  - [x] 8.3 实现选择器优先级逻辑
     - getByRole > getByText > getByPlaceholder > getByLabel > getByTestId > CSS locator
     - _Requirements: 4.2_
   
-  - [ ] 8.4 实现脚本执行器
+  - [x] 8.4 实现脚本执行器
     - 通过 node 命令执行生成的脚本
     - 收集截图到 evidence/screenshots/
     - 输出执行结果 JSON
     - _Requirements: 7.3, 7.4, 7.5_
   
-  - [ ] 8.5 实现 soft 断言处理
+  - [x] 8.5 实现 soft 断言处理
     - soft 类型断言包含 agent_verdict 和 agent_reasoning
     - _Requirements: 7.6_
   
-  - [ ] 8.6 实现错误处理
+  - [x] 8.6 实现错误处理
     - 捕获 Playwright 错误（元素未找到、超时）
     - 记录 playwright_error reason_code
     - _Requirements: 7.7_
   
-  - [ ] 8.7 实现测试数据管理
+  - [x] 8.7 实现测试数据管理
     - 生成数据准备步骤
     - 生成数据清理步骤
     - 失败时仍执行清理
     - _Requirements: 4.11, 7.8, 19.1, 19.2, 19.3, 19.4, 19.5_
   
-  - [ ] 8.8 编写 Playwright Runner 属性测试
+  - [x] 8.8 编写 Playwright Runner 属性测试
     - **Property 4: Ant Design Button Selector Pattern**
     - **Property 9: Selector Priority Ordering**
     - **Property 17: Test Script Structure Completeness**

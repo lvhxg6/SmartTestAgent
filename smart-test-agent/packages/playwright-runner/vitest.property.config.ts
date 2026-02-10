@@ -2,8 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.{test,spec}.{js,ts}'],
-    exclude: ['node_modules', 'dist', 'src/**/*.property.test.ts'],
+    include: ['src/**/*.property.test.ts'],
+    exclude: ['node_modules', 'dist'],
     passWithNoTests: true,
     pool: 'forks',
     poolOptions: {
@@ -11,5 +11,6 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    testTimeout: 60000, // Property tests may take longer
   },
 });
