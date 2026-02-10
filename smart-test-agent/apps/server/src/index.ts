@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 
 import { appRouter } from './trpc/routers/index.js';
 import { createContextFactory } from './trpc/context.js';
+import { uploadRouter } from './routes/upload.js';
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +76,17 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
   next();
 });
+
+// ============================================================================
+// File Upload Route (mounted before tRPC)
+// ============================================================================
+
+/**
+ * File upload endpoint for source code files
+ * Handles multipart/form-data uploads, organized by projectId and category
+ * @see Requirements 3.1, 3.2, 3.3, 3.4, 3.5
+ */
+app.use('/api/upload', uploadRouter);
 
 // ============================================================================
 // tRPC Router Configuration
