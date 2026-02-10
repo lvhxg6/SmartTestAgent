@@ -359,7 +359,7 @@
 - [x] 19. Checkpoint - 确保 API 层测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 20. Web UI 实现
+- [x] 20. Web UI 实现
   - [x] 20.1 初始化 React + Ant Design 前端
     - 创建 apps/web 应用
     - 配置 Vite 构建
@@ -397,7 +397,7 @@
     - 质量门禁指标展示
     - _Requirements: 17.4_
 
-- [ ] 21. Prompt 模板实现
+- [x] 21. Prompt 模板实现
   - [x] 21.1 编写 PRD 解析 Prompt
     - prd-parse.md 模板
     - 输入：PRD 原文 + 路由表 + 页面源码 + API 定义
@@ -416,7 +416,7 @@
     - 输出：codex-review-results.json
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 22. 端到端集成
+- [x] 22. 端到端集成
   - [x] 22.1 实现完整流程编排
     - 串联所有步骤：配置 → 源码索引 → PRD 解析 → 用例生成 → 审批 → 执行（读写操作）→ 审核 → 裁决 → Markdown 报告 → 确认
     - _Requirements: 全部_
@@ -427,7 +427,7 @@
     - 重试逻辑
     - _Requirements: 7.7, 13.2_
 
-- [ ] 23. Final Checkpoint - 确保所有测试通过
+- [x] 23. Final Checkpoint - 确保所有测试通过
   - 确保所有测试通过，如有问题请询问用户
   - 验证端到端流程（读写操作）
   - 验证 Markdown 报告生成
