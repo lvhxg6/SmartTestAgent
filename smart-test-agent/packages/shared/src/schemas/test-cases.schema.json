@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-test-agent/schemas/test-cases.json",
+  "title": "TestCases",
+  "description": "Schema for test-cases.json output from test case generation",
+  "type": "object",
+  "required": ["runId", "testCases"],
+  "properties": {
+    "runId": {
+      "type": "string",
+      "description": "Test run identifier"
+    },
+    "testCases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/TestCase"
+      }
+    }
+  },
+  "definitions": {
+    "TestCase": {
+      "type": "object",
+      "required": ["caseId", "requirementId", "route", "title", "precondition", "steps", "assertions"],
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "pattern": "^TC-[0-9]{3,}$",
+          "description": "Unique test case identifier"
+        },
+        "requirementId": {
+          "type": "string",
+          "description": "Associated requirement ID"
+        },
+        "route": {
+          "type": "string",
+          "pattern": "^/.*",
+          "description": "Route being tested"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Test case title"
+        },
+        "precondition": {
+          "type": "string",
+          "description": "Preconditions for the test"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TestStep"
+          },
+          "minItems": 1
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssertionDef"
+          },
+          "minItems": 1
+        },
+        "dataPreparation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DataStep"
+          }
+        },
+        "dataCleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DataStep"
+          }
+        }
+      }
+    },
+    "TestStep": {
+      "type": "object",
+      "required": ["stepNumber", "action"],
+      "properties": {
+        "stepNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selector": {
+          "type": "string"
+        },
+        "inputValue": {
+          "type": "string"
+        },
+        "expectedResult": {
+          "type": "string"
+        },
+        "screenshot": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AssertionDef": {
+      "type": "object",
+      "required": ["assertionId", "type", "description", "expected"],
+      "properties": {
+        "assertionId": {
+          "type": "string",
+          "pattern": "^A-[0-9]{3,}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["element_visible", "text_content", "element_count", "navigation", "soft"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {
+          "type": "string"
+        }
+      }
+    },
+    "DataStep": {
+      "type": "object",
+      "required": ["action", "target"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["create", "update", "delete", "api_call"]
+        },
+        "target": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "cleanup": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

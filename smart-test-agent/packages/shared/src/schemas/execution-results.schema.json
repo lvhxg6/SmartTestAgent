@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-test-agent/schemas/execution-results.json",
+  "title": "ExecutionResults",
+  "description": "Schema for execution-results.json output from test execution",
+  "type": "object",
+  "required": ["runId", "startTime", "endTime", "totalDurationMs", "testCases", "screenshots", "success"],
+  "properties": {
+    "runId": {
+      "type": "string",
+      "description": "Test run identifier"
+    },
+    "startTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Execution start time"
+    },
+    "endTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Execution end time"
+    },
+    "totalDurationMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total duration in milliseconds"
+    },
+    "testCases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/TestCaseResult"
+      }
+    },
+    "screenshots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Screenshot"
+      }
+    },
+    "success": {
+      "type": "boolean",
+      "description": "Overall success"
+    },
+    "error": {
+      "type": "string",
+      "description": "Error if execution failed"
+    },
+    "reasonCode": {
+      "type": "string",
+      "enum": ["retry_exhausted", "agent_timeout", "approval_timeout", "confirm_timeout", "verdict_conflict", "playwright_error", "internal_error"]
+    }
+  },
+  "definitions": {
+    "TestCaseResult": {
+      "type": "object",
+      "required": ["caseId", "status", "steps", "assertions", "durationMs"],
+      "properties": {
+        "caseId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "passed", "failed", "error"]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StepResult"
+          }
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssertionResult"
+          }
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "StepResult": {
+      "type": "object",
+      "required": ["stepNumber", "success", "durationMs"],
+      "properties": {
+        "stepNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        },
+        "screenshotPath": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "AssertionResult": {
+      "type": "object",
+      "required": ["assertionId", "type", "description", "expected"],
+      "properties": {
+        "assertionId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["element_visible", "text_content", "element_count", "navigation", "soft"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "expected": {
+          "type": "string"
+        },
+        "actual": {
+          "type": "string"
+        },
+        "machineVerdict": {
+          "type": "string",
+          "enum": ["pass", "fail", "error"]
+        },
+        "agentVerdict": {
+          "type": "string",
+          "enum": ["pass", "fail", "error"]
+        },
+        "agentReasoning": {
+          "type": "string"
+        },
+        "evidencePath": {
+          "type": "string"
+        }
+      }
+    },
+    "Screenshot": {
+      "type": "object",
+      "required": ["id", "caseId", "stepNumber", "path", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "caseId": {
+          "type": "string"
+        },
+        "stepNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "path": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

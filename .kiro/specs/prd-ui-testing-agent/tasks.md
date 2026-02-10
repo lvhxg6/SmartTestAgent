@@ -292,19 +292,19 @@
     - **Property 31: Manifest Completeness**
     - **Validates: Requirements 14.1, 14.2, 14.3**
 
-- [ ] 15. JSON Schema 验证实现
-  - [ ] 15.1 创建 JSON Schema 定义文件
+- [x] 15. JSON Schema 验证实现
+  - [x] 15.1 创建 JSON Schema 定义文件
     - requirements.json schema
     - test-cases.json schema
     - execution-results.json schema
     - codex-review-results.json schema（含 p0_coverage_check）
     - _Requirements: 3.2, 4.7, 5.2, 7.5_
   
-  - [ ] 15.2 实现 Schema 验证器
+  - [x] 15.2 实现 Schema 验证器
     - 使用 ajv 进行 JSON Schema 验证
     - _Requirements: 3.2, 4.7, 4.8, 5.2, 7.5, 8.3_
   
-  - [ ] 15.3 编写 Schema 验证属性测试
+  - [x] 15.3 编写 Schema 验证属性测试
     - **Property 8: JSON Output Schema Compliance**
     - **Validates: Requirements 3.2, 4.7, 4.8, 5.2, 7.5, 8.3**
 

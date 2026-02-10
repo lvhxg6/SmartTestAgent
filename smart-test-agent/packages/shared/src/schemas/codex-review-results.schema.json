@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-test-agent/schemas/codex-review-results.json",
+  "title": "CodexReviewResults",
+  "description": "Schema for codex-review-results.json output from Codex review",
+  "type": "object",
+  "required": ["runId", "reviews"],
+  "properties": {
+    "runId": {
+      "type": "string",
+      "description": "Test run identifier"
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AssertionReview"
+      }
+    },
+    "p0CoverageCheck": {
+      "$ref": "#/definitions/P0CoverageCheck"
+    },
+    "falsePositives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Assertion IDs identified as false positives"
+    },
+    "falseNegatives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Assertion IDs identified as false negatives"
+    }
+  },
+  "definitions": {
+    "AssertionReview": {
+      "type": "object",
+      "required": ["assertionId", "caseId", "reviewVerdict", "reasoning"],
+      "properties": {
+        "assertionId": {
+          "type": "string",
+          "description": "Assertion identifier"
+        },
+        "caseId": {
+          "type": "string",
+          "description": "Test case identifier"
+        },
+        "reviewVerdict": {
+          "type": "string",
+          "enum": ["agree", "disagree", "uncertain"],
+          "description": "Review verdict"
+        },
+        "reasoning": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reasoning for the verdict"
+        },
+        "conflictType": {
+          "type": "string",
+          "enum": ["fact_conflict", "evidence_missing", "threshold_conflict"],
+          "description": "Conflict type if disagreement"
+        }
+      }
+    },
+    "P0CoverageCheck": {
+      "type": "object",
+      "required": ["status", "missingP0Ids"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail"],
+          "description": "Whether all P0 requirements are covered"
+        },
+        "missingP0Ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of missing P0 requirement IDs"
+        }
+      }
+    }
+  }
+}

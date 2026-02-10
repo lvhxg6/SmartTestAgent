@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-test-agent/schemas/requirements.json",
+  "title": "Requirements",
+  "description": "Schema for requirements.json output from PRD parsing",
+  "type": "object",
+  "required": ["runId", "requirements"],
+  "properties": {
+    "runId": {
+      "type": "string",
+      "description": "Test run identifier"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Requirement"
+      }
+    }
+  },
+  "definitions": {
+    "Requirement": {
+      "type": "object",
+      "required": ["requirementId", "title", "description", "priority", "testable", "route", "acceptanceCriteria"],
+      "properties": {
+        "requirementId": {
+          "type": "string",
+          "pattern": "^REQ-[0-9]{3,}$",
+          "description": "Unique requirement identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Requirement title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2"],
+          "description": "Priority level"
+        },
+        "testable": {
+          "type": "boolean",
+          "description": "Whether this requirement can be UI automated"
+        },
+        "route": {
+          "type": "string",
+          "pattern": "^/.*",
+          "description": "Associated route path"
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of acceptance criteria"
+        },
+        "sourceSection": {
+          "type": "string",
+          "description": "Source section in PRD"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags for categorization"
+        }
+      }
+    }
+  }
+}
