@@ -43,7 +43,7 @@
 - [x] 2. Checkpoint - 确保后端测试全部通过
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. 新增文件上传接口
+- [x] 3. 新增文件上传接口
   - [x] 3.1 安装 multer 依赖并创建 upload 路由模块
     - 在 apps/server 中安装 multer 和 @types/multer
     - 创建 `apps/server/src/routes/upload.ts`，实现 `POST /api/upload/:projectId`
@@ -62,15 +62,15 @@
     - 测试缺少 projectId 返回 400
     - _Requirements: 3.2, 3.3, 3.5_
 
-  - [~]* 3.4 编写 property test：上传文件存储和路径返回
+  - [x]* 3.4 编写 property test：上传文件存储和路径返回
     - **Property 4: Upload endpoint stores files and returns correct paths**
     - **Validates: Requirements 2.5, 3.2, 3.3**
 
-- [~] 4. Checkpoint - 确保上传接口测试通过
+- [x] 4. Checkpoint - 确保上传接口测试通过
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. 前端 ProjectConfig.tsx 改造
-  - [~] 5.1 修改测试路由区域：TextArea → Input
+  - [x] 5.1 修改测试路由区域：TextArea → Input
     - 将 allowedRoutes 的 `<TextArea>` 替换为 `<Input>` 并重命名表单字段为 testRoute
     - 移除 deniedRoutes 的 `<TextArea>`
     - 修改 handleSubmit：`allowedRoutes: [values.testRoute]`
@@ -78,7 +78,7 @@
     - 修改 useEffect 回填逻辑：`form.setFieldsValue({ testRoute: profile.allowedRoutes[0] })`
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [~] 5.2 修改源码配置区域：路径输入 → 文件上传
+  - [ ] 5.2 修改源码配置区域：路径输入 → 文件上传
     - 移除 4 个路径 Input（frontendRoot, routerFile, pageDir, apiDir）
     - 新增"路由/菜单文件"Upload 组件（Ant Design Upload，maxCount: 2）
     - 新增"页面组件文件"Upload 组件（支持多文件，accept: .tsx,.ts,.jsx,.js,.vue,.zip）

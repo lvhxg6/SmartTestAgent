@@ -4,7 +4,7 @@
  * @see Requirements 17.1
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Form,
   Input,
@@ -18,12 +18,14 @@ import {
   Spin,
   Typography,
   Divider,
+  Upload,
 } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { trpc } from '../lib/trpc';
+import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 /**
  * Project configuration page component
@@ -32,6 +34,13 @@ export const ProjectConfig: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+
+  // State for uploaded file paths (source code config)
+  const [routeFiles, setRouteFiles] = useState<string[]>([]);
+  const [pageFiles, setPageFiles] = useState<string[]>([]);
+  // State for Upload component file lists
+  const [routeFileList, setRouteFileList] = useState<UploadFile[]>([]);
+  const [pageFileList, setPageFileList] = useState<UploadFile[]>([]);
 
   // Fetch project
   const { data: project, isLoading: projectLoading } = trpc.project.getById.useQuery(
@@ -73,13 +82,36 @@ export const ProjectConfig: React.FC = () => {
         baseUrl: profile.baseUrl,
         browser: profile.browser,
         login: profile.login,
-        allowedRoutes: profile.allowedRoutes.join('\n'),
-        deniedRoutes: profile.deniedRoutes?.join('\n') || '',
+        testRoute: profile.allowedRoutes[0],
         allowedOperations: profile.allowedOperations,
-        sourceCode: profile.sourceCode,
         uiFramework: profile.uiFramework,
         antdQuirks: profile.antdQuirks,
       });
+
+      // Load uploaded file paths from sourceCode (new format)
+      const sc = profile.sourceCode as { routeFiles?: string[]; pageFiles?: string[] } | undefined;
+      if (sc?.routeFiles) {
+        setRouteFiles(sc.routeFiles);
+        setRouteFileList(
+          sc.routeFiles.map((filePath, idx) => ({
+            uid: `route-${idx}`,
+            name: filePath.split('/').pop() || filePath,
+            status: 'done' as const,
+            url: filePath,
+          }))
+        );
+      }
+      if (sc?.pageFiles) {
+        setPageFiles(sc.pageFiles);
+        setPageFileList(
+          sc.pageFiles.map((filePath, idx) => ({
+            uid: `page-${idx}`,
+            name: filePath.split('/').pop() || filePath,
+            status: 'done' as const,
+            url: filePath,
+          }))
+        );
+      }
     }
   }, [profile, form]);
 
@@ -89,11 +121,10 @@ export const ProjectConfig: React.FC = () => {
       baseUrl: values.baseUrl,
       browser: values.browser,
       login: values.login,
-      allowedRoutes: values.allowedRoutes.split('\n').filter((r: string) => r.trim()),
-      deniedRoutes: values.deniedRoutes?.split('\n').filter((r: string) => r.trim()) || [],
+      allowedRoutes: [values.testRoute],
       allowedOperations: values.allowedOperations,
       deniedOperations: [],
-      sourceCode: values.sourceCode,
+      sourceCode: { routeFiles, pageFiles },
       uiFramework: values.uiFramework,
       antdQuirks: values.uiFramework === 'antd' ? values.antdQuirks : undefined,
     };
@@ -109,17 +140,58 @@ export const ProjectConfig: React.FC = () => {
         baseUrl: values.baseUrl,
         browser: values.browser,
         login: values.login,
-        allowedRoutes: values.allowedRoutes.split('\n').filter((r: string) => r.trim()),
-        deniedRoutes: values.deniedRoutes?.split('\n').filter((r: string) => r.trim()) || [],
+        allowedRoutes: [values.testRoute],
         allowedOperations: values.allowedOperations,
         deniedOperations: [],
-        sourceCode: values.sourceCode,
+        sourceCode: { routeFiles, pageFiles },
         uiFramework: values.uiFramework,
         antdQuirks: values.uiFramework === 'antd' ? values.antdQuirks : undefined,
       };
       validateMutation.mutate(data);
     } catch (error) {
       message.error('请先填写完整的配置信息');
+    }
+  };
+
+  // Upload change handler for route files
+  const handleRouteUploadChange: UploadProps['onChange'] = (info) => {
+    setRouteFileList(info.fileList);
+    const donePaths: string[] = [];
+    for (const file of info.fileList) {
+      if (file.status === 'done' && file.response?.success) {
+        for (const f of file.response.files) {
+          donePaths.push(f.storagePath);
+        }
+      }
+    }
+    if (donePaths.length > 0) {
+      setRouteFiles(donePaths);
+    }
+    if (info.file.status === 'done') {
+      message.success(`${info.file.name} 上传成功`);
+    } else if (info.file.status === 'error') {
+      message.error(`${info.file.name} 上传失败`);
+    }
+  };
+
+  // Upload change handler for page files
+  const handlePageUploadChange: UploadProps['onChange'] = (info) => {
+    setPageFileList(info.fileList);
+    const donePaths: string[] = [];
+    for (const file of info.fileList) {
+      if (file.status === 'done' && file.response?.success) {
+        for (const f of file.response.files) {
+          donePaths.push(f.storagePath);
+        }
+      }
+    }
+    if (donePaths.length > 0) {
+      setPageFiles(donePaths);
+    }
+    if (info.file.status === 'done') {
+      message.success(`${info.file.name} 上传成功`);
+    } else if (info.file.status === 'error') {
+      message.error(`${info.file.name} 上传失败`);
     }
   };
 
@@ -237,14 +309,11 @@ export const ProjectConfig: React.FC = () => {
 
         <Card title="测试范围" style={{ marginBottom: 16 }}>
           <Form.Item
-            name="allowedRoutes"
-            label="允许测试的路由（每行一个）"
-            rules={[{ required: true, message: '请至少输入一个路由' }]}
+            name="testRoute"
+            label="测试路由"
+            rules={[{ required: true, message: '请输入测试路由' }]}
           >
-            <TextArea rows={4} placeholder="/dashboard&#10;/users&#10;/settings" />
-          </Form.Item>
-          <Form.Item name="deniedRoutes" label="禁止测试的路由（每行一个）">
-            <TextArea rows={2} placeholder="/admin&#10;/system" />
+            <Input placeholder="/dashboard" />
           </Form.Item>
           <Form.Item name="allowedOperations" label="允许的操作类型">
             <Select mode="multiple">
@@ -261,17 +330,30 @@ export const ProjectConfig: React.FC = () => {
         </Card>
 
         <Card title="源码配置" style={{ marginBottom: 16 }}>
-          <Form.Item name={['sourceCode', 'frontendRoot']} label="前端根目录">
-            <Input placeholder="./src" />
+          <Form.Item label="路由/菜单文件（最多 2 个）">
+            <Upload
+              action={`/api/upload/${projectId}`}
+              data={{ category: 'route' }}
+              name="files"
+              maxCount={2}
+              fileList={routeFileList}
+              onChange={handleRouteUploadChange}
+            >
+              <Button icon={<UploadOutlined />}>上传路由文件</Button>
+            </Upload>
           </Form.Item>
-          <Form.Item name={['sourceCode', 'routerFile']} label="路由文件路径">
-            <Input placeholder="./src/router/index.ts" />
-          </Form.Item>
-          <Form.Item name={['sourceCode', 'pageDir']} label="页面目录">
-            <Input placeholder="./src/pages" />
-          </Form.Item>
-          <Form.Item name={['sourceCode', 'apiDir']} label="API 目录">
-            <Input placeholder="./src/api" />
+          <Form.Item label="页面组件文件（支持多文件或 zip）">
+            <Upload
+              action={`/api/upload/${projectId}`}
+              data={{ category: 'page' }}
+              name="files"
+              multiple
+              accept=".tsx,.ts,.jsx,.js,.vue,.zip"
+              fileList={pageFileList}
+              onChange={handlePageUploadChange}
+            >
+              <Button icon={<UploadOutlined />}>上传页面文件</Button>
+            </Upload>
           </Form.Item>
         </Card>
 
