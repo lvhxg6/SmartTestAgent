@@ -5,5 +5,16 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,ts}'],
     exclude: ['node_modules', 'dist'],
     passWithNoTests: true,
+    // Run tests sequentially to avoid database conflicts
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    // Ensure tests within a file run sequentially
+    sequence: {
+      concurrent: false,
+    },
   },
 });

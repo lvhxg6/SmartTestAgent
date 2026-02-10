@@ -124,30 +124,30 @@
 - [x] 6. Checkpoint - 确保核心模块测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 7. Orchestrator 状态机实现
-  - [ ] 7.1 实现状态机核心逻辑
+- [x] 7. Orchestrator 状态机实现
+  - [x] 7.1 实现状态机核心逻辑
     - 创建 packages/core/orchestrator 模块
     - 实现 8 态状态机（created → parsing → generating → awaiting_approval → executing → codex_reviewing → report_ready → completed）
     - 实现 failed 终态和 reason_code
     - _Requirements: 14.1, 14.2_
   
-  - [ ] 7.2 实现状态转换逻辑
+  - [x] 7.2 实现状态转换逻辑
     - 实现各状态间的合法转换
     - 实现审批/拒绝转换
     - 实现确认/重测转换
     - 实现超时转换（24h 审批超时、48h 确认超时）
     - _Requirements: 6.1, 6.3, 6.4, 6.5, 13.1, 13.3, 13.4, 13.5_
   
-  - [ ] 7.3 实现幂等性保证
+  - [x] 7.3 实现幂等性保证
     - 使用 run_id + state + shard_id 作为幂等键
     - 重复转换返回 no-op
     - _Requirements: 14.4, 14.5_
   
-  - [ ] 7.4 实现状态转换日志
+  - [x] 7.4 实现状态转换日志
     - 记录到 manifest decision_log
     - _Requirements: 14.3_
   
-  - [ ] 7.5 编写状态机属性测试
+  - [x] 7.5 编写状态机属性测试
     - **Property 14: State Machine Transition Correctness**
     - **Property 15: State Machine Idempotency**
     - **Validates: Requirements 6.1, 6.3, 6.4, 6.5, 14.1, 14.2, 14.4, 14.5**
