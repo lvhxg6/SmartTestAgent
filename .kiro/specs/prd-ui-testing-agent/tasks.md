@@ -121,7 +121,7 @@
     - **Property 34: CLI Degradation Behavior**
     - **Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5**
 
-- [ ] 6. Checkpoint - 确保核心模块测试通过
+- [x] 6. Checkpoint - 确保核心模块测试通过
   - 确保所有测试通过，如有问题请询问用户
 
 - [ ] 7. Orchestrator 状态机实现

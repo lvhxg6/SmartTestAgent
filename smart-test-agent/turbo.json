@@ -14,8 +14,9 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "dependsOn": ["^build", "^test"],
+      "outputs": ["coverage/**"],
+      "cache": false
     },
     "test:unit": {
       "dependsOn": ["^build"],
