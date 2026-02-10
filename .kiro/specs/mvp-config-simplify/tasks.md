@@ -28,7 +28,7 @@
     - **Property 2: loginUrl accepts hash route strings**
     - **Validates: Requirements 4.1, 4.2**
 
-  - [~]* 1.4 编写 property test：sourceCodeConfig 接受文件路径数组
+  - [x]* 1.4 编写 property test：sourceCodeConfig 接受文件路径数组
     - **Property 3: sourceCodeConfig accepts file path arrays**
     - **Validates: Requirements 4.4**
 

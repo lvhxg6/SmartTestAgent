@@ -45,7 +45,7 @@ export const loginConfigSchema = z.object({
  * Source code config schema
  * @see Requirements 2.1, 2.2, 2.3
  */
-const sourceCodeConfigSchema = z.object({
+export const sourceCodeConfigSchema = z.object({
   routeFiles: z.array(z.string()),
   pageFiles: z.array(z.string()),
 });
