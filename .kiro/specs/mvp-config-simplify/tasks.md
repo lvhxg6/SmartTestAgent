@@ -32,11 +32,11 @@
     - **Property 3: sourceCodeConfig accepts file path arrays**
     - **Validates: Requirements 4.4**
 
-  - [~]* 1.5 编写 property test：deniedRoutes 始终存储为空数组
+  - [x]* 1.5 编写 property test：deniedRoutes 始终存储为空数组
     - **Property 6: deniedRoutes invariant — always empty array**
     - **Validates: Requirements 6.3**
 
-  - [~]* 1.6 编写 property test：target profile JSON 序列化 round-trip
+  - [x]* 1.6 编写 property test：target profile JSON 序列化 round-trip
     - **Property 5: Target profile JSON serialization round-trip**
     - **Validates: Requirements 6.1, 6.2**
 
