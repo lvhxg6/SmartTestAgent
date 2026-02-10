@@ -372,4 +372,95 @@ describe('Target Profile Router', () => {
       expect(result.exists).toBe(false);
     });
   });
+
+  describe('loginUrl hash route support', () => {
+    it('should accept loginUrl with hash route format /#/login', async () => {
+      const caller = createCaller({} as any);
+      const input = {
+        ...validProfileInput,
+        login: {
+          ...validProfileInput.login,
+          loginUrl: '/#/login',
+        },
+      };
+      const result = await caller.upsert(input);
+
+      expect(result.id).toBeDefined();
+      expect(result.login.loginUrl).toBe('/#/login');
+    });
+
+    it('should accept loginUrl with relative path format /login', async () => {
+      const caller = createCaller({} as any);
+      const input = {
+        ...validProfileInput,
+        login: {
+          ...validProfileInput.login,
+          loginUrl: '/login',
+        },
+      };
+      const result = await caller.upsert(input);
+
+      expect(result.id).toBeDefined();
+      expect(result.login.loginUrl).toBe('/login');
+    });
+
+    it('should validate successfully with hash route loginUrl', async () => {
+      const caller = createCaller({} as any);
+      const result = await caller.validate({
+        ...validProfileInput,
+        login: {
+          ...validProfileInput.login,
+          loginUrl: '/#/login',
+        },
+      });
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+  });
+
+  describe('deniedRoutes removal', () => {
+    it('should accept request without deniedRoutes field', async () => {
+      const caller = createCaller({} as any);
+      // validProfileInput does not contain deniedRoutes
+      expect(validProfileInput).not.toHaveProperty('deniedRoutes');
+      const result = await caller.upsert(validProfileInput);
+
+      expect(result.id).toBeDefined();
+      expect(result.baseUrl).toBe('https://example.com');
+    });
+
+    it('should not return deniedRoutes in API response', async () => {
+      const caller = createCaller({} as any);
+      const result = await caller.upsert(validProfileInput);
+
+      expect(result).not.toHaveProperty('deniedRoutes');
+    });
+
+    it('should store deniedRoutes as empty array in database', async () => {
+      const { prisma } = await import('@smart-test-agent/db');
+      const caller = createCaller({} as any);
+      await caller.upsert(validProfileInput);
+
+      // Verify the upsert was called with deniedRoutes as empty array JSON
+      expect(prisma.targetProfile.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            deniedRoutes: JSON.stringify([]),
+          }),
+          update: expect.objectContaining({
+            deniedRoutes: JSON.stringify([]),
+          }),
+        })
+      );
+    });
+
+    it('should validate successfully without deniedRoutes', async () => {
+      const caller = createCaller({} as any);
+      const result = await caller.validate(validProfileInput);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+  });
 });
