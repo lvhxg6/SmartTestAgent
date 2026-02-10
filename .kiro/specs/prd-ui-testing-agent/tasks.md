@@ -311,123 +311,123 @@
 - [x] 16. Checkpoint - 确保所有核心模块测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [~] 17. API Layer 实现
+- [x] 17. API Layer 实现
   - [x] 17.1 初始化 Express + tRPC 服务
     - 创建 apps/server 应用
     - 配置 Express 中间件
     - 配置 tRPC router
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
   
-  - [~] 17.2 实现项目管理 API
+  - [x] 17.2 实现项目管理 API
     - 创建/更新/删除项目
     - 获取项目列表
     - _Requirements: 17.1_
   
-  - [~] 17.3 实现 Target Profile API
+  - [x] 17.3 实现 Target Profile API
     - 保存/获取 Target Profile
     - 验证配置
     - _Requirements: 1.1, 1.2, 17.1_
   
-  - [~] 17.4 实现测试运行 API
+  - [x] 17.4 实现测试运行 API
     - 创建测试运行
     - 获取运行状态
     - 提交审批/确认决策
     - _Requirements: 6.2, 6.3, 6.4, 12.2, 12.3, 12.4_
   
-  - [~] 17.5 实现报告 API
+  - [x] 17.5 实现报告 API
     - 获取 Markdown 测试报告
     - 获取缺陷列表
     - 获取截图
     - _Requirements: 17.4_
 
-- [~] 18. WebSocket 实时推送实现
-  - [~] 18.1 配置 Socket.IO
+- [x] 18. WebSocket 实时推送实现
+  - [x] 18.1 配置 Socket.IO
     - 集成到 Express 服务
     - 配置房间管理（按 run_id）
     - _Requirements: 16.1, 16.2_
   
-  - [~] 18.2 实现事件推送
+  - [x] 18.2 实现事件推送
     - state_transition 事件 → current_state
     - step_completed 事件 → completed_steps
     - step_screenshot 事件 → step_screenshot_preview
     - _Requirements: 16.3, 16.4, 16.5, 16.6, 16.7_
   
-  - [~] 18.3 编写 WebSocket 属性测试
+  - [x] 18.3 编写 WebSocket 属性测试
     - **Property 36: WebSocket Event Structure and Mapping**
     - **Validates: Requirements 16.2, 16.3, 16.4, 16.5, 16.6, 16.7**
 
-- [~] 19. Checkpoint - 确保 API 层测试通过
+- [x] 19. Checkpoint - 确保 API 层测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [~] 20. Web UI 实现
-  - [~] 20.1 初始化 React + Ant Design 前端
+- [ ] 20. Web UI 实现
+  - [x] 20.1 初始化 React + Ant Design 前端
     - 创建 apps/web 应用
     - 配置 Vite 构建
     - 配置 Ant Design 5
     - 配置路由（React Router）
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
   
-  - [~] 20.2 实现项目配置页面
+  - [ ] 20.2 实现项目配置页面
     - Target Profile 表单
     - 配置验证反馈
     - _Requirements: 17.1_
   
-  - [~] 20.3 实现路由选择页面
+  - [ ] 20.3 实现路由选择页面
     - 路由列表展示
     - 路由选择交互
     - PRD 上传
     - _Requirements: 17.2_
   
-  - [~] 20.4 实现测试执行监控页面
+  - [ ] 20.4 实现测试执行监控页面
     - 状态机状态展示
     - 已完成/待执行步骤列表
     - 截图预览
     - WebSocket 实时更新
     - _Requirements: 16.1, 16.3, 16.4, 16.5, 16.6, 17.3_
   
-  - [~] 20.5 实现审批/确认界面
+  - [ ] 20.5 实现审批/确认界面
     - 测试用例审批界面
     - 报告确认界面
     - _Requirements: 6.2, 12.2, 17.5_
   
-  - [~] 20.6 实现报告查看页面
+  - [ ] 20.6 实现报告查看页面
     - Markdown 报告渲染
     - 缺陷列表
     - 截图查看
     - 质量门禁指标展示
     - _Requirements: 17.4_
 
-- [~] 21. Prompt 模板实现
-  - [~] 21.1 编写 PRD 解析 Prompt
+- [ ] 21. Prompt 模板实现
+  - [ ] 21.1 编写 PRD 解析 Prompt
     - prd-parse.md 模板
     - 输入：PRD 原文 + 路由表 + 页面源码 + API 定义
     - 输出：requirements.json + test-cases.json
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.7, 4.8, 4.9, 4.11_
   
-  - [~] 21.2 编写测试执行 Prompt
+  - [ ] 21.2 编写测试执行 Prompt
     - ui-test-execute.md 模板
     - 输入：test-cases.json + target-profile.json
     - 输出：test-{run_id}.js + execution-results.json
     - _Requirements: 7.1, 7.2_
   
-  - [~] 21.3 编写结果审核 Prompt
+  - [ ] 21.3 编写结果审核 Prompt
     - review-results.md 模板
     - 输入：test-cases.json + execution-results.json + 截图 + PRD
     - 输出：codex-review-results.json
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [~] 22. 端到端集成
-  - [~] 22.1 实现完整流程编排
+- [ ] 22. 端到端集成
+  - [ ] 22.1 实现完整流程编排
     - 串联所有步骤：配置 → 源码索引 → PRD 解析 → 用例生成 → 审批 → 执行（读写操作）→ 审核 → 裁决 → Markdown 报告 → 确认
     - _Requirements: 全部_
   
-  - [~] 22.2 实现错误恢复机制
+  - [ ] 22.2 实现错误恢复机制
     - 各阶段错误捕获
     - 状态回滚
     - 重试逻辑
     - _Requirements: 7.7, 13.2_
 
-- [~] 23. Final Checkpoint - 确保所有测试通过
+- [ ] 23. Final Checkpoint - 确保所有测试通过
   - 确保所有测试通过，如有问题请询问用户
   - 验证端到端流程（读写操作）
   - 验证 Markdown 报告生成

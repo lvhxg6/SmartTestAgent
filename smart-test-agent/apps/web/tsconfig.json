@@ -13,7 +13,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@smart-test-agent/shared": ["../../packages/shared/src/index.ts"],
-      "@smart-test-agent/shared/*": ["../../packages/shared/src/*"]
+      "@smart-test-agent/shared/*": ["../../packages/shared/src/*"],
+      "@smart-test-agent/server": ["../server/src/index.ts"]
     }
   },
   "include": ["src"],

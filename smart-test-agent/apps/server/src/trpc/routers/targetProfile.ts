@@ -1,12 +1,14 @@
 /**
  * Target Profile Router
- * Handles target profile configuration operations
+ * Handles target profile configuration operations with Prisma database integration
  * @see Requirements 1.1, 1.2, 17.1
  */
 
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc.js';
 import { TRPCError } from '@trpc/server';
+import { prisma, toJsonString, fromJsonString, fromJsonStringNullable } from '@smart-test-agent/db';
+import { TargetProfileManager, validateTargetProfile } from '@smart-test-agent/core';
 
 /**
  * Browser config schema
@@ -113,8 +115,32 @@ export type TargetProfileInput = z.infer<typeof targetProfileInputSchema>;
 export type TargetProfile = z.infer<typeof targetProfileSchema>;
 
 /**
- * Target profile router
- * Note: Database integration will be added in task 17.3
+ * Convert database record to API response format
+ */
+function dbToApiFormat(dbRecord: any): TargetProfile {
+  const antdQuirksValue = dbRecord.antdQuirks 
+    ? fromJsonString<{ buttonTextSpace: boolean; selectType: 'custom' | 'native'; modalCloseSelector: string }>(dbRecord.antdQuirks)
+    : undefined;
+  return {
+    id: dbRecord.id,
+    projectId: dbRecord.projectId,
+    baseUrl: dbRecord.baseUrl,
+    browser: fromJsonString(dbRecord.browserConfig),
+    login: fromJsonString(dbRecord.loginConfig),
+    allowedRoutes: fromJsonString(dbRecord.allowedRoutes),
+    deniedRoutes: fromJsonString(dbRecord.deniedRoutes),
+    allowedOperations: fromJsonString(dbRecord.allowedOperations),
+    deniedOperations: fromJsonString(dbRecord.deniedOperations),
+    sourceCode: fromJsonString(dbRecord.sourceCodeConfig),
+    uiFramework: dbRecord.uiFramework as 'antd' | 'element-ui' | 'custom',
+    antdQuirks: antdQuirksValue,
+    createdAt: dbRecord.createdAt,
+    updatedAt: dbRecord.updatedAt,
+  };
+}
+
+/**
+ * Target profile router with Prisma database integration
  */
 export const targetProfileRouter = router({
   /**
@@ -123,11 +149,31 @@ export const targetProfileRouter = router({
   getByProjectId: publicProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ input }) => {
-      // TODO: Implement with Prisma in task 17.3
-      throw new TRPCError({
-        code: 'NOT_FOUND',
-        message: `Target profile for project ${input.projectId} not found`,
+      // Check if project exists
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
       });
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${input.projectId} not found`,
+        });
+      }
+
+      // Get target profile
+      const profile = await prisma.targetProfile.findUnique({
+        where: { projectId: input.projectId },
+      });
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Target profile for project ${input.projectId} not found`,
+        });
+      }
+
+      return dbToApiFormat(profile);
     }),
 
   /**
@@ -136,28 +182,53 @@ export const targetProfileRouter = router({
   upsert: publicProcedure
     .input(targetProfileInputSchema)
     .mutation(async ({ input }) => {
-      // TODO: Implement with Prisma in task 17.3
-      const now = new Date();
-      return {
-        id: crypto.randomUUID(),
-        ...input,
-        createdAt: now,
-        updatedAt: now,
-      } as TargetProfile;
+      // Check if project exists
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${input.projectId} not found`,
+        });
+      }
+
+      // Prepare data for database
+      const dbData = {
+        baseUrl: input.baseUrl,
+        browserConfig: toJsonString(input.browser),
+        loginConfig: toJsonString(input.login),
+        allowedRoutes: toJsonString(input.allowedRoutes),
+        deniedRoutes: toJsonString(input.deniedRoutes ?? []),
+        allowedOperations: toJsonString(input.allowedOperations),
+        deniedOperations: toJsonString(input.deniedOperations ?? []),
+        sourceCodeConfig: toJsonString(input.sourceCode),
+        uiFramework: input.uiFramework,
+        antdQuirks: input.antdQuirks ? toJsonString(input.antdQuirks) : null,
+      };
+
+      // Upsert target profile
+      const profile = await prisma.targetProfile.upsert({
+        where: { projectId: input.projectId },
+        create: {
+          projectId: input.projectId,
+          ...dbData,
+        },
+        update: dbData,
+      });
+
+      return dbToApiFormat(profile);
     }),
 
   /**
    * Validate target profile configuration
+   * Uses the core TargetProfileManager for validation
    */
   validate: publicProcedure
     .input(targetProfileInputSchema)
     .mutation(async ({ input }) => {
-      // Validation is done by Zod schema
-      // Additional validation logic can be added here
       const errors: string[] = [];
-
-      // Validate URL accessibility (placeholder)
-      // TODO: Add actual URL validation in task 17.3
 
       // Validate route format
       for (const route of input.allowedRoutes) {
@@ -166,14 +237,52 @@ export const targetProfileRouter = router({
         }
       }
 
+      // Validate denied routes format if provided
+      if (input.deniedRoutes) {
+        for (const route of input.deniedRoutes) {
+          if (!route.startsWith('/')) {
+            errors.push(`Denied route "${route}" must start with /`);
+          }
+        }
+      }
+
       // Validate antdQuirks is provided when uiFramework is 'antd'
       if (input.uiFramework === 'antd' && !input.antdQuirks) {
         errors.push('antdQuirks configuration is recommended for Ant Design framework');
       }
 
+      // Validate URL format
+      try {
+        new URL(input.baseUrl);
+      } catch {
+        errors.push('Invalid base URL format');
+      }
+
+      try {
+        new URL(input.login.loginUrl);
+      } catch {
+        errors.push('Invalid login URL format');
+      }
+
+      // Validate viewport dimensions
+      if (input.browser.viewport.width < 320) {
+        errors.push('Viewport width must be at least 320px');
+      }
+      if (input.browser.viewport.height < 240) {
+        errors.push('Viewport height must be at least 240px');
+      }
+
+      // Validate timeout
+      if (input.browser.timeoutMs < 1000) {
+        errors.push('Timeout must be at least 1000ms');
+      }
+
       return {
         valid: errors.length === 0,
         errors,
+        warnings: input.uiFramework === 'antd' && !input.antdQuirks 
+          ? ['Consider providing antdQuirks configuration for better Ant Design support']
+          : [],
       };
     }),
 
@@ -183,10 +292,49 @@ export const targetProfileRouter = router({
   delete: publicProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ input }) => {
-      // TODO: Implement with Prisma in task 17.3
-      throw new TRPCError({
-        code: 'NOT_FOUND',
-        message: `Target profile for project ${input.projectId} not found`,
+      // Check if project exists
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
       });
+
+      if (!project) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Project with id ${input.projectId} not found`,
+        });
+      }
+
+      // Check if target profile exists
+      const profile = await prisma.targetProfile.findUnique({
+        where: { projectId: input.projectId },
+      });
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Target profile for project ${input.projectId} not found`,
+        });
+      }
+
+      // Delete target profile
+      await prisma.targetProfile.delete({
+        where: { projectId: input.projectId },
+      });
+
+      return { success: true, projectId: input.projectId };
+    }),
+
+  /**
+   * Check if target profile exists for a project
+   */
+  exists: publicProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const profile = await prisma.targetProfile.findUnique({
+        where: { projectId: input.projectId },
+        select: { id: true },
+      });
+
+      return { exists: !!profile };
     }),
 });
