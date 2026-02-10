@@ -88,7 +88,15 @@ smart-test-agent/packages/db/prisma/data/smart-test-agent.db
 
 ### Start Development Server
 
-**方式一：使用 Turbo 同时启动前后端（推荐）**
+**方式一：一键启动脚本（推荐）**
+
+```bash
+./start.sh
+```
+
+脚本会自动检查环境、安装依赖、初始化数据库并启动服务。
+
+**方式二：使用 Turbo 同时启动前后端**
 
 ```bash
 pnpm run dev
