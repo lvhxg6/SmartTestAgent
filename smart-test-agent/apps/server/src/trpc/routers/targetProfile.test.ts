@@ -82,7 +82,7 @@ const validProfileInput = {
     timeoutMs: 30000,
   },
   login: {
-    loginUrl: 'https://example.com/login',
+    loginUrl: '/#/login',
     usernameSelector: '#username',
     passwordSelector: '#password',
     submitSelector: '#submit',
@@ -90,12 +90,10 @@ const validProfileInput = {
     successIndicator: '.dashboard',
   },
   allowedRoutes: ['/dashboard', '/users'],
-  allowedOperations: ['query', 'view_detail'] as const,
+  allowedOperations: ['query', 'view_detail'] as ('query' | 'view_detail')[],
   sourceCode: {
-    frontendRoot: './src',
-    routerFile: './src/router/index.ts',
-    pageDir: './src/pages',
-    apiDir: './src/api',
+    routeFiles: ['data/uploads/test/route-files/routes.ts'],
+    pageFiles: ['data/uploads/test/page-files/UserList.tsx', 'data/uploads/test/page-files/Dashboard.tsx'],
   },
   uiFramework: 'antd' as const,
   antdQuirks: {

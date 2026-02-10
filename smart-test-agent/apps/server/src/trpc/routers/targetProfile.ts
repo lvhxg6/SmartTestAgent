@@ -28,7 +28,7 @@ const browserConfigSchema = z.object({
  * @see Requirements 1.1, 1.3
  */
 const loginConfigSchema = z.object({
-  loginUrl: z.string().url(),
+  loginUrl: z.string(),
   usernameSelector: z.string(),
   passwordSelector: z.string(),
   submitSelector: z.string(),
@@ -46,10 +46,8 @@ const loginConfigSchema = z.object({
  * @see Requirements 2.1, 2.2, 2.3
  */
 const sourceCodeConfigSchema = z.object({
-  frontendRoot: z.string(),
-  routerFile: z.string(),
-  pageDir: z.string(),
-  apiDir: z.string(),
+  routeFiles: z.array(z.string()),
+  pageFiles: z.array(z.string()),
 });
 
 /**
@@ -93,7 +91,6 @@ const targetProfileInputSchema = z.object({
   browser: browserConfigSchema,
   login: loginConfigSchema,
   allowedRoutes: z.array(z.string()).min(1, 'At least one route is required'),
-  deniedRoutes: z.array(z.string()).optional(),
   allowedOperations: z.array(operationTypeSchema).min(1, 'At least one operation is required'),
   deniedOperations: z.array(operationTypeSchema).optional(),
   sourceCode: sourceCodeConfigSchema,
@@ -117,7 +114,7 @@ export type TargetProfile = z.infer<typeof targetProfileSchema>;
  * Convert database record to API response format
  */
 function dbToApiFormat(dbRecord: any): TargetProfile {
-  const antdQuirksValue = dbRecord.antdQuirks 
+  const antdQuirksValue = dbRecord.antdQuirks
     ? fromJsonString<{ buttonTextSpace: boolean; selectType: 'custom' | 'native'; modalCloseSelector: string }>(dbRecord.antdQuirks)
     : undefined;
   return {
@@ -127,7 +124,6 @@ function dbToApiFormat(dbRecord: any): TargetProfile {
     browser: fromJsonString(dbRecord.browserConfig),
     login: fromJsonString(dbRecord.loginConfig),
     allowedRoutes: fromJsonString(dbRecord.allowedRoutes),
-    deniedRoutes: fromJsonString(dbRecord.deniedRoutes),
     allowedOperations: fromJsonString(dbRecord.allowedOperations),
     deniedOperations: fromJsonString(dbRecord.deniedOperations),
     sourceCode: fromJsonString(dbRecord.sourceCodeConfig),
@@ -199,7 +195,7 @@ export const targetProfileRouter = router({
         browserConfig: toJsonString(input.browser),
         loginConfig: toJsonString(input.login),
         allowedRoutes: toJsonString(input.allowedRoutes),
-        deniedRoutes: toJsonString(input.deniedRoutes ?? []),
+        deniedRoutes: toJsonString([]),
         allowedOperations: toJsonString(input.allowedOperations),
         deniedOperations: toJsonString(input.deniedOperations ?? []),
         sourceCodeConfig: toJsonString(input.sourceCode),
@@ -236,15 +232,6 @@ export const targetProfileRouter = router({
         }
       }
 
-      // Validate denied routes format if provided
-      if (input.deniedRoutes) {
-        for (const route of input.deniedRoutes) {
-          if (!route.startsWith('/')) {
-            errors.push(`Denied route "${route}" must start with /`);
-          }
-        }
-      }
-
       // Validate antdQuirks is provided when uiFramework is 'antd'
       if (input.uiFramework === 'antd' && !input.antdQuirks) {
         errors.push('antdQuirks configuration is recommended for Ant Design framework');
@@ -255,12 +242,6 @@ export const targetProfileRouter = router({
         new URL(input.baseUrl);
       } catch {
         errors.push('Invalid base URL format');
-      }
-
-      try {
-        new URL(input.login.loginUrl);
-      } catch {
-        errors.push('Invalid login URL format');
       }
 
       // Validate viewport dimensions
