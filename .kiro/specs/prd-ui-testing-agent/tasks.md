@@ -265,16 +265,16 @@
     - **Property 27: Assertion Pass Rate Calculation**
     - **Validates: Requirements 11.1, 11.2**
 
-- [ ] 13. Checkpoint - 确保核心业务逻辑测试通过
+- [x] 13. Checkpoint - 确保核心业务逻辑测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 14. 工作空间管理实现
-  - [ ] 14.1 实现工作空间目录创建
+- [x] 14. 工作空间管理实现
+  - [x] 14.1 实现工作空间目录创建
     - 创建 .ai-test-workspace/{run_id}/ 结构
     - 创建 source-context/、evidence/screenshots/、evidence/traces/ 子目录
     - _Requirements: 14.1_
   
-  - [ ] 14.2 实现 manifest.json 管理
+  - [x] 14.2 实现 manifest.json 管理
     - 记录 run_id、project_id、status
     - 记录 agent_versions、prompt_versions
     - 记录 artifacts SHA256 校验和
@@ -282,12 +282,12 @@
     - 记录 env_fingerprint
     - _Requirements: 14.2, 14.3_
   
-  - [ ] 14.3 实现追溯链完整性检查
+  - [x] 14.3 实现追溯链完整性检查
     - 验证 requirement_id → case_id → assertion_id → evidence 链路
     - 缺失任一层级排除出门禁计算
     - _Requirements: 14.4, 14.5_
   
-  - [ ] 14.4 编写工作空间属性测试
+  - [x] 14.4 编写工作空间属性测试
     - **Property 30: Workspace Directory Structure**
     - **Property 31: Manifest Completeness**
     - **Validates: Requirements 14.1, 14.2, 14.3**
