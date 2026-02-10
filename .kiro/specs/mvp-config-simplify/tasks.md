@@ -69,7 +69,7 @@
 - [x] 4. Checkpoint - 确保上传接口测试通过
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. 前端 ProjectConfig.tsx 改造
+- [x] 5. 前端 ProjectConfig.tsx 改造
   - [x] 5.1 修改测试路由区域：TextArea → Input
     - 将 allowedRoutes 的 `<TextArea>` 替换为 `<Input>` 并重命名表单字段为 testRoute
     - 移除 deniedRoutes 的 `<TextArea>`
@@ -78,7 +78,7 @@
     - 修改 useEffect 回填逻辑：`form.setFieldsValue({ testRoute: profile.allowedRoutes[0] })`
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 5.2 修改源码配置区域：路径输入 → 文件上传
+  - [x] 5.2 修改源码配置区域：路径输入 → 文件上传
     - 移除 4 个路径 Input（frontendRoot, routerFile, pageDir, apiDir）
     - 新增"路由/菜单文件"Upload 组件（Ant Design Upload，maxCount: 2）
     - 新增"页面组件文件"Upload 组件（支持多文件，accept: .tsx,.ts,.jsx,.js,.vue,.zip）
@@ -87,18 +87,18 @@
     - 修改 handleSubmit：`sourceCode: { routeFiles: [...], pageFiles: [...] }`
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-  - [~] 5.3 修改数据加载回填逻辑
+  - [x] 5.3 修改数据加载回填逻辑
     - useEffect 中处理新格式 sourceCode（routeFiles, pageFiles）
     - 对旧格式 sourceCode 做防御性处理（字段不存在时显示空）
     - _Requirements: 1.3, 2.6_
 
-- [ ] 6. RouteSelection.tsx 适配验证
-  - [~] 6.1 验证 RouteSelection.tsx 兼容单元素 allowedRoutes 数组
+- [x] 6. RouteSelection.tsx 适配验证
+  - [x] 6.1 验证 RouteSelection.tsx 兼容单元素 allowedRoutes 数组
     - 检查现有代码 `profile.allowedRoutes.map(...)` 对单元素数组的兼容性
     - 如需修改则适配，如无需修改则确认
     - _Requirements: 5.1, 5.2_
 
-- [~] 7. Final checkpoint - 确保所有测试通过
+- [x] 7. Final checkpoint - 确保所有测试通过
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
