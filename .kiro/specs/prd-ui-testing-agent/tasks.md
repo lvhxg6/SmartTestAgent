@@ -225,18 +225,18 @@
     - **Property 23: Cross-Validation Arbitration Rules**
     - **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
 
-- [ ] 11. Markdown 缺陷报告生成实现
-  - [ ] 11.1 实现缺陷聚合
+- [x] 11. Markdown 缺陷报告生成实现
+  - [x] 11.1 实现缺陷聚合
     - 收集所有 final_verdict = fail 的断言
     - _Requirements: 10.1_
   
-  - [ ] 11.2 实现 Markdown 报告生成
+  - [x] 11.2 实现 Markdown 报告生成
     - 包含缺陷描述、截图链接、操作步骤回放
     - 分配严重程度（critical/major/minor/suggestion）
     - 包含摘要（总缺陷数、严重程度分布、受影响路由）
     - _Requirements: 10.2, 10.3, 10.4, 10.5_
   
-  - [ ] 11.3 编写报告生成属性测试
+  - [x] 11.3 编写报告生成属性测试
     - **Property 24: Defect Report Aggregation**
     - **Validates: Requirements 10.1**
 
