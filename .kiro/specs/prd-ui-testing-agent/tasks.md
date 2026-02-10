@@ -56,36 +56,36 @@
     - **Property 1: Target Profile Configuration Round-Trip**
     - **Validates: Requirements 1.1, 1.2, 1.3**
 
-- [ ] 3. Checkpoint - 确保配置管理模块测试通过
+- [x] 3. Checkpoint - 确保配置管理模块测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 4. Source Indexer 实现
-  - [ ] 4.1 实现路由文件解析器
+- [x] 4. Source Indexer 实现
+  - [x] 4.1 实现路由文件解析器
     - 创建 packages/core/source-indexer 模块
     - 支持 vue-router 格式解析
     - 支持 react-router 格式解析
     - 实现路由到组件路径映射
     - _Requirements: 2.1, 2.9_
   
-  - [ ] 4.2 实现 Vue 组件提取器
+  - [x] 4.2 实现 Vue 组件提取器
     - 解析 .vue 文件
     - 提取 template 和 script 部分
     - 实现 >500 行裁剪逻辑
     - 提取 API 导入引用
     - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.7_
   
-  - [ ] 4.3 实现 React 组件提取器
+  - [x] 4.3 实现 React 组件提取器
     - 解析 .tsx/.jsx 文件
     - 提取 JSX return 和 hooks
     - 实现 >500 行裁剪逻辑
     - 提取 API 导入引用
     - _Requirements: 2.2, 2.3, 2.4, 2.6, 2.8_
   
-  - [ ] 4.4 实现框架类型检测
+  - [x] 4.4 实现框架类型检测
     - 基于路由文件模式检测 vue/react
     - _Requirements: 2.9_
   
-  - [ ] 4.5 编写 Source Indexer 属性测试
+  - [x] 4.5 编写 Source Indexer 属性测试
     - **Property 5: Route to Component Mapping**
     - **Property 6: Source File Extraction Preserves Key Content**
     - **Property 7: Framework Detection Accuracy**
