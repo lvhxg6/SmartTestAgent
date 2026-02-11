@@ -269,15 +269,19 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
 
 ## 输出要求
 
-完成后，请输出一个 JSON 对象：
+请将结果直接写入文件：
+- \`./outputs/requirements.json\` - 需求列表
+- \`./outputs/test-cases.json\` - 测试用例列表
+
+写入完成后，输出确认信息：
 \`\`\`json
-{
-  "requirements": [...],
-  "testCases": [...]
-}
+{"status": "completed", "files": ["requirements.json", "test-cases.json"]}
 \`\`\`
 
-**注意：所有文件操作都使用相对路径（以 ./ 开头），不要使用绝对路径！**
+**注意：**
+- 所有文件操作都使用相对路径（以 ./ 开头）
+- 如果文件太大，可以分段写入
+- 确保 JSON 格式正确
 `;
         
         const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
@@ -287,7 +291,7 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
         // Run Claude Code in the workspace directory
         const result = await this.cliAdapter.invokeClaudeCode({
           prompt,
-          workingDir: workspace!.root,  // Key change: run in workspace directory
+          workingDir: workspace!.root,
           outputFormat: 'stream-json',
           onLog,
         });
@@ -302,11 +306,80 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
           throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
         }
         
-        if (!result.output || result.output.trim() === '') {
-          throw new Error('Claude Code 返回空输出');
+        // Check if files were written directly by Claude
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        const requirementsPath = path.join(outputsDir, 'requirements.json');
+        const testCasesPath = path.join(outputsDir, 'test-cases.json');
+        
+        let requirementsExist = false;
+        let testCasesExist = false;
+        
+        try {
+          await fs.access(requirementsPath);
+          requirementsExist = true;
+        } catch { /* file doesn't exist */ }
+        
+        try {
+          await fs.access(testCasesPath);
+          testCasesExist = true;
+        } catch { /* file doesn't exist */ }
+        
+        // If Claude wrote files directly, use them
+        if (requirementsExist && testCasesExist) {
+          // Validate JSON format
+          try {
+            JSON.parse(await fs.readFile(requirementsPath, 'utf-8'));
+            JSON.parse(await fs.readFile(testCasesPath, 'utf-8'));
+            return {
+              requirementsPath,
+              testCasesPath,
+            };
+          } catch (e) {
+            throw new Error(`Claude 写入的文件 JSON 格式错误: ${e instanceof Error ? e.message : '未知错误'}`);
+          }
         }
         
-        // Parse output
+        // If only requirements exist, try to parse test cases from output
+        if (requirementsExist && !testCasesExist) {
+          // Try to extract test cases from output
+          let testCases: unknown[] = [];
+          
+          if (result.output && result.output.trim()) {
+            try {
+              const parsed = JSON.parse(result.output);
+              if (parsed.testCases) {
+                testCases = parsed.testCases;
+              }
+            } catch {
+              const jsonMatch = result.output.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                try {
+                  const parsed = JSON.parse(jsonMatch[0]);
+                  if (parsed.testCases) {
+                    testCases = parsed.testCases;
+                  }
+                } catch { /* ignore */ }
+              }
+            }
+          }
+          
+          // Write test cases if extracted, otherwise throw error
+          if (testCases.length > 0) {
+            await fs.writeFile(testCasesPath, JSON.stringify(testCases, null, 2));
+            return {
+              requirementsPath,
+              testCasesPath,
+            };
+          } else {
+            throw new Error('Claude 未能生成 test-cases.json 文件');
+          }
+        }
+        
+        // Fallback: try to parse from output
+        if (!result.output || result.output.trim() === '') {
+          throw new Error('Claude Code 返回空输出且未写入文件');
+        }
+        
         let parsed: { requirements?: unknown[]; testCases?: unknown[] };
         try {
           parsed = JSON.parse(result.output);
@@ -320,13 +393,12 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
         }
         
         // Save to outputs directory
-        const outputsDir = path.join(workspace!.root, 'outputs');
         await fs.writeFile(
-          path.join(outputsDir, 'requirements.json'),
+          requirementsPath,
           JSON.stringify(parsed.requirements || [], null, 2)
         );
         await fs.writeFile(
-          path.join(outputsDir, 'test-cases.json'),
+          testCasesPath,
           JSON.stringify(parsed.testCases || [], null, 2)
         );
         
