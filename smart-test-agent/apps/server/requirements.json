@@ -1,0 +1,307 @@
+{
+  "version": "1.0",
+  "prd_source": "任务自动下发配置 - 前端PRD文档 V1.3",
+  "extracted_at": "2026-02-11T00:00:00.000Z",
+  "requirements": [
+    {
+      "requirement_id": "REQ-001",
+      "title": "Tab切换四种扫描类型",
+      "description": "页面顶部通过Tab切换四种扫描类型：基线检测、弱口令检测、系统漏洞、外部漏洞。切换Tab时加载对应扫描类型的配置数据，若有未保存的修改需提示用户是否保存。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 页面顶部展示四个Tab：基线检测、弱口令检测、系统漏洞、外部漏洞",
+        "AC2: 点击Tab切换时加载对应扫描类型的配置数据",
+        "AC3: 切换Tab时若有未保存修改，弹出确认提示"
+      ],
+      "source_section": "3. 页面结构设计",
+      "tags": ["tab-switch", "navigation"]
+    },
+    {
+      "requirement_id": "REQ-002",
+      "title": "自动下发开关控制",
+      "description": "通过Switch开关控制自动调度是否生效。开启时若配置不完整需提示先完善配置；关闭时需二次确认，提示关闭后将取消待执行的自动调度任务，已有的手动调度任务不受影响。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 页面展示Switch开关组件",
+        "AC2: 开启时若配置不完整，提示先完善配置",
+        "AC3: 关闭时弹出二次确认弹框，提示内容包含'关闭后将取消待执行的自动调度任务，已有的手动调度任务不受影响'",
+        "AC4: 确认关闭后调用接口关闭自动下发"
+      ],
+      "source_section": "4. 自动下发参数 & 10.3 开关切换",
+      "tags": ["switch", "auto-dispatch", "config"]
+    },
+    {
+      "requirement_id": "REQ-003",
+      "title": "自动下发参数配置",
+      "description": "配置自动下发的基本参数，包括每月开始扫描日期(1-31)、开始时间(0-23整点)、单个任务下发最大资产数(1-500)、任务超时最大等待时间(1-10小时)、自动任务创建用户。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 每月开始扫描日期为Select下拉，可选1-31",
+        "AC2: 开始时间为Select下拉，可选0-23整点",
+        "AC3: 开始时间不能配置在盲时范围内",
+        "AC4: 单个任务下发最大资产数为InputNumber，范围1-500",
+        "AC5: 任务超时最大等待时间为InputNumber，范围1-10",
+        "AC6: 自动任务创建用户为Select下拉，数据来源于系统用户列表接口",
+        "AC7: 所有字段必填，未填时展示对应错误提示"
+      ],
+      "source_section": "4.1 配置项UI设计 & 4.2 前端校验规则",
+      "tags": ["config", "form-validation", "auto-dispatch"]
+    },
+    {
+      "requirement_id": "REQ-004",
+      "title": "盲时配置管理",
+      "description": "配置不允许下发扫描任务的时间段（盲时），支持三种类型：整月、指定日期、时间段。通过表格动态增删行管理盲时规则，并配置下发任务距离忙时间隔。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 盲时列表以Table表格展示，支持动态添加和删除行",
+        "AC2: 支持添加整月类型盲时（MonthPicker选择月份）",
+        "AC3: 支持添加指定日期类型盲时（DatePicker选择月-日）",
+        "AC4: 支持添加时间段类型盲时（TimeRangePicker选择时-分~时-分）",
+        "AC5: 时间段盲时开始时间必须小于结束时间，不支持跨天",
+        "AC6: 下发任务距离忙时间隔为InputNumber，单位小时",
+        "AC7: 保存时调用后端接口校验盲时配置是否导致全年无可执行时间"
+      ],
+      "source_section": "5. 自动下发时间（业务系统忙时）",
+      "tags": ["blind-time", "config", "form-validation"]
+    },
+    {
+      "requirement_id": "REQ-005",
+      "title": "资产范围配置",
+      "description": "配置自动下发的资产范围，包括资产范围选择（全部资产/仅上报资产/非上报资产）和业务系统范围选择（TreeSelect树形多选）。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 资产范围为Radio单选，选项：全部资产/仅上报资产/非上报资产",
+        "AC2: 业务系统范围为TreeSelect树形多选下拉",
+        "AC3: TreeSelect支持按名称模糊搜索",
+        "AC4: TreeSelect按资产组显示顺序排序",
+        "AC5: 勾选父节点不自动勾选子节点（不联动）"
+      ],
+      "source_section": "6. 自动下发资产范围",
+      "tags": ["asset-scope", "config", "tree-select"]
+    },
+    {
+      "requirement_id": "REQ-006",
+      "title": "外部漏洞扫描资产过滤",
+      "description": "外部漏洞扫描仅查询应用类型的资产，若业务系统下无应用类型资产则跳过该业务系统。外部漏洞Tab下需增加提示文案。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 外部漏洞Tab下展示提示文案'外部漏洞扫描仅针对应用类型资产'",
+        "AC2: 外部漏洞扫描仅查询应用类型资产"
+      ],
+      "source_section": "6.3 外部漏洞扫描特殊规则",
+      "tags": ["external-vuln", "asset-filter"]
+    },
+    {
+      "requirement_id": "REQ-007",
+      "title": "扫描工具选择",
+      "description": "通过Card卡片单选方式选择扫描工具，展示可用的扫描工具及版本。切换工具时模板列表需重新加载。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 扫描工具以Card卡片形式展示，支持单选",
+        "AC2: 展示工具名称和版本信息",
+        "AC3: 切换工具时模板列表重新加载",
+        "AC4: 若当前选中模板不在新工具的模板列表中，清空模板选择"
+      ],
+      "source_section": "7.1 通用配置UI设计 & 7.3 工具切换交互",
+      "tags": ["tool-selection", "config"]
+    },
+    {
+      "requirement_id": "REQ-008",
+      "title": "合规模板选择",
+      "description": "通过Select下拉选择扫描使用的模板，支持关键字模糊查询。模板与工具有对应关系，若工具无可选模板则禁用模板下拉框并显示提示。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 模板为Select下拉选择，支持关键字模糊查询",
+        "AC2: 模板列表根据选中的工具动态加载",
+        "AC3: 若工具无可选模板，模板下拉框禁用并显示'该工具使用内置默认模板'",
+        "AC4: 工具无可选模板时保存不校验模板必选"
+      ],
+      "source_section": "7.1 通用配置UI设计 & 7.3 工具切换交互",
+      "tags": ["template-selection", "config"]
+    },
+    {
+      "requirement_id": "REQ-009",
+      "title": "基线检测和弱口令检测保存原始结果选项",
+      "description": "基线检测和弱口令检测需要额外展示'保存原始结果'Checkbox，默认勾选。系统漏洞和外部漏洞无此选项。",
+      "priority": "P2",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 基线检测Tab展示'保存原始结果'Checkbox，默认勾选",
+        "AC2: 弱口令检测Tab展示'保存原始结果'Checkbox，默认勾选",
+        "AC3: 系统漏洞Tab不展示'保存原始结果'Checkbox",
+        "AC4: 外部漏洞Tab不展示'保存原始结果'Checkbox"
+      ],
+      "source_section": "7.2 差异配置",
+      "tags": ["scan-mode", "config"]
+    },
+    {
+      "requirement_id": "REQ-010",
+      "title": "配置保存功能",
+      "description": "点击保存按钮时先进行前端校验，通过后调用后端接口保存配置。后端返回盲时配置校验失败时展示错误提示。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 点击保存按钮触发前端表单校验",
+        "AC2: 前端校验通过后调用后端保存接口",
+        "AC3: 保存成功后展示成功提示",
+        "AC4: 后端返回盲时配置校验失败时展示'盲时配置过多，无法找到可执行时间，请调整配置'"
+      ],
+      "source_section": "10.2 配置保存",
+      "tags": ["save", "form-validation"]
+    },
+    {
+      "requirement_id": "REQ-011",
+      "title": "自动扫描情况跟踪弹框",
+      "description": "点击'自动扫描情况跟踪'按钮弹出历史扫描记录弹框，支持按月份、业务系统、状态筛选，展示轮次列表包含序号、月份、执行轮次、目标名称、失败业务系统、执行时间、状态、操作列。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 点击'自动扫描情况跟踪'按钮弹出Modal弹框",
+        "AC2: 弹框包含月份(MonthPicker)、业务系统(Select)、状态(Select)三个筛选条件",
+        "AC3: 列表展示序号、月份、执行轮次、目标名称、失败业务系统、执行时间、状态、操作列",
+        "AC4: 状态列以带颜色Tag展示",
+        "AC5: 目标名称展示'共X个业务系统'，鼠标悬停Tooltip显示详情",
+        "AC6: 失败业务系统展示'共X个'或'-'，鼠标悬停Tooltip显示详情",
+        "AC7: pending状态显示'计划：{plan_start_time}'，操作列无'查看明细'",
+        "AC8: skipped状态操作列无'查看明细'"
+      ],
+      "source_section": "8.3 自动扫描情况跟踪弹框",
+      "tags": ["round-tracking", "modal", "table"]
+    },
+    {
+      "requirement_id": "REQ-012",
+      "title": "轮次状态Tag样式",
+      "description": "轮次状态以不同颜色Tag展示：pending灰色、waiting蓝色、running蓝色、success绿色、failed红色、partial_failed橙色、skipped灰色。cancelled状态不展示。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: pending状态展示灰色(default)Tag，文本'待执行'",
+        "AC2: waiting状态展示蓝色(processing)Tag，文本'等待中'",
+        "AC3: running状态展示蓝色(processing)Tag，文本'执行中'",
+        "AC4: success状态展示绿色(success)Tag，文本'成功'",
+        "AC5: failed状态展示红色(error)Tag，文本'失败'",
+        "AC6: partial_failed状态展示橙色(warning)Tag，文本'部分失败'",
+        "AC7: skipped状态展示灰色(default)Tag，文本'已跳过'",
+        "AC8: cancelled状态的记录不在列表中展示"
+      ],
+      "source_section": "8.3.4 状态Tag样式 & 4.3 轮次状态展示",
+      "tags": ["status-tag", "ui-style"]
+    },
+    {
+      "requirement_id": "REQ-013",
+      "title": "轮次执行明细弹框",
+      "description": "点击'查看明细'后展示本轮每个业务系统的执行详情，包含序号、业务系统名称、资产数、AMR任务ID（可点击跳转）、AMR任务名称。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 点击'查看明细'弹出明细弹框",
+        "AC2: 明细列表展示序号、业务系统名称、资产数、AMR任务ID、AMR任务名称",
+        "AC3: AMR任务ID为可点击Link，跳转到AMR任务详情",
+        "AC4: AMR任务名称格式为'{扫描类型}_{轮次标识}_{业务系统名称}'"
+      ],
+      "source_section": "8.4 轮次执行明细弹框",
+      "tags": ["round-detail", "modal", "table"]
+    },
+    {
+      "requirement_id": "REQ-014",
+      "title": "手动下发新一轮次",
+      "description": "点击'下发新一轮次任务'按钮弹出配置弹窗，支持选择定时开始时间和资产范围（全部/上次扫描失败资产/本轮未扫描到的资产）。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 点击'下发新一轮次任务'按钮弹出配置弹窗",
+        "AC2: 弹窗包含定时开始时间(DateTimePicker)，可不选表示立即执行",
+        "AC3: 弹窗包含资产范围Checkbox复选框组：全部/上次扫描失败资产/本轮未扫描到的资产",
+        "AC4: 选择'全部'时其他两项置灰不可选",
+        "AC5: '上次扫描失败资产'和'本轮未扫描到的资产'可同时勾选"
+      ],
+      "source_section": "8.5 手动下发新一轮次弹框",
+      "tags": ["manual-dispatch", "modal", "write-operation"]
+    },
+    {
+      "requirement_id": "REQ-015",
+      "title": "手动下发存在pending时的交互",
+      "description": "手动下发时若已存在pending状态的手动调度，选择定时时间则更新该记录的计划执行时间（跨月需重新计算轮次编号并提示）；不选时间（立即执行）则弹出确认框提示取消原定时任务。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 存在pending手动调度时选择定时时间，更新原记录的计划执行时间",
+        "AC2: 定时时间跨月时提示'执行时间已跨月，轮次编号将更新为{新月份}的轮次'",
+        "AC3: 存在pending手动调度时选择立即执行，弹出确认框提示取消原定时任务",
+        "AC4: 确认后原pending记录状态改为cancelled，创建新记录立即执行"
+      ],
+      "source_section": "8.5.1.1 存在手动pending时的交互规则",
+      "tags": ["manual-dispatch", "pending-handling", "write-operation"]
+    },
+    {
+      "requirement_id": "REQ-016",
+      "title": "手动下发校验规则",
+      "description": "手动下发时需校验：是否存在waiting/running状态的轮次、定时时间是否在盲时内、定时时间是否在距盲时间隔内、立即执行时当前时间是否在盲时内或距盲时间隔内。",
+      "priority": "P0",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 存在waiting/running状态轮次时提示'当前存在执行中的调度，请等待完成后再操作'",
+        "AC2: 定时时间在盲时内时提示'所选时间在盲时范围内，请重新选择'",
+        "AC3: 定时时间距盲时不足时提示'所选时间距离盲时不足X小时，请重新选择'",
+        "AC4: 立即执行时当前在盲时内提示'当前处于盲时，请选择定时执行时间'",
+        "AC5: 立即执行时距盲时不足提示'当前距离盲时不足X小时，请选择定时执行时间'"
+      ],
+      "source_section": "8.5.4 前端校验规则",
+      "tags": ["manual-dispatch", "validation"]
+    },
+    {
+      "requirement_id": "REQ-017",
+      "title": "轮次列表筛选功能",
+      "description": "自动扫描情况跟踪弹框中的轮次列表支持按月份、业务系统、状态进行筛选查询。",
+      "priority": "P1",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 月份筛选使用MonthPicker，选择后列表按月份过滤",
+        "AC2: 业务系统筛选使用Select下拉，选择后列表按业务系统过滤",
+        "AC3: 状态筛选使用Select下拉，选项包含全部/待执行/等待中/执行中/成功/失败/部分失败/已跳过",
+        "AC4: 多个筛选条件可组合使用"
+      ],
+      "source_section": "8.3.2 查询条件",
+      "tags": ["round-tracking", "filter", "query"]
+    },
+    {
+      "requirement_id": "REQ-018",
+      "title": "轮次列表刷新",
+      "description": "轮次列表支持手动刷新按钮，建议增加自动刷新机制（如30秒刷新一次）展示最新状态。",
+      "priority": "P2",
+      "testable": true,
+      "route": "/system-maintenance/auto-scan-config",
+      "acceptance_criteria": [
+        "AC1: 轮次列表提供手动刷新按钮",
+        "AC2: 点击刷新按钮后列表数据重新加载"
+      ],
+      "source_section": "10.4 列表刷新",
+      "tags": ["round-tracking", "refresh"]
+    }
+  ]
+}

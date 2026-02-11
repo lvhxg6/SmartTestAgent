@@ -82,7 +82,8 @@ export class ClaudeCodeAdapter {
       const onLog = params.onLog;
 
       // Add --dangerously-skip-permissions to bypass permission prompts
-      const fullArgs = ['--dangerously-skip-permissions', ...args];
+      // Add --verbose for stream-json output format
+      const fullArgs = ['--dangerously-skip-permissions', '--verbose', ...args];
       
       // Build command with shell initialization to load environment variables from ~/.zshrc
       const claudeCmd = `source ~/.zshrc 2>/dev/null; claude ${fullArgs.map(arg => `"${arg}"`).join(' ')}`;
