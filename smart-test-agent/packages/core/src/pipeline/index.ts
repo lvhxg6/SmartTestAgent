@@ -30,6 +30,8 @@ export interface PipelineConfig {
   targetProfile: TargetProfile;
   workspaceRoot: string;
   promptsDir: string;
+  /** Optional existing run ID - if provided, skip creating a new run */
+  existingRunId?: string;
 }
 
 export interface StepResult {
@@ -96,18 +98,21 @@ export class TestPipeline {
 
   async execute(config: PipelineConfig): Promise<PipelineResult> {
     const steps: StepResult[] = [];
-    let runId = '';
+    let runId = config.existingRunId || '';
     let workspace: WorkspaceStructure | null = null;
 
     try {
       // Step 0: Initialize
       const initResult = await this.executeStep('initialize', async () => {
-        const testRun = await this.orchestrator.createRun({
-          projectId: config.projectId,
-          prdPath: config.prdPath,
-          routes: config.routes,
-        });
-        runId = testRun.id;
+        // Use existing runId if provided, otherwise create new run
+        if (!runId) {
+          const testRun = await this.orchestrator.createRun({
+            projectId: config.projectId,
+            prdPath: config.prdPath,
+            routes: config.routes,
+          });
+          runId = testRun.id;
+        }
         workspace = await createWorkspace(config.workspaceRoot, runId);
         const manifest = createManifest(
           runId,

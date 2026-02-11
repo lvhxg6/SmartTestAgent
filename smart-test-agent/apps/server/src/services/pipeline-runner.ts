@@ -103,6 +103,7 @@ export class PipelineRunner {
       targetProfile: profileConfig,
       workspaceRoot: this.config.workspaceRoot,
       promptsDir: this.config.promptsDir,
+      existingRunId: runId, // Use the existing run ID from database
     };
 
     // Create and configure pipeline
