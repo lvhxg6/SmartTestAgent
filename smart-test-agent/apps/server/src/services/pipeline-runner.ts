@@ -365,9 +365,13 @@ let pipelineRunner: PipelineRunner | null = null;
 export function getPipelineRunner(config?: PipelineRunnerConfig): PipelineRunner {
   if (!pipelineRunner) {
     if (!config) {
+      // Server runs from apps/server, so we need to go up to monorepo root for prompts
+      const serverRoot = process.cwd();
+      const monorepoRoot = path.resolve(serverRoot, '..', '..'); // smart-test-agent
+      
       config = {
         workspaceRoot: process.env.WORKSPACE_DIR || '.ai-test-workspace',
-        promptsDir: process.env.PROMPTS_DIR || 'prompts',
+        promptsDir: process.env.PROMPTS_DIR || path.join(monorepoRoot, 'prompts'),
       };
     }
     pipelineRunner = new PipelineRunner(config);
