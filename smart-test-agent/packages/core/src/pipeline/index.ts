@@ -229,31 +229,43 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
 
 ---
 
-## 工作目录说明
+## 重要：工作目录说明
 
-当前工作目录包含所有需要的输入文件：
+你当前的工作目录已经设置好，包含所有需要的输入文件。**请使用相对路径访问文件，不要使用绝对路径。**
 
-- \`inputs/prd.md\` - PRD 文档
-- \`inputs/routes/\` - 路由配置文件（可能是 .js, .ts, .vue 或 .zip 文件）
-- \`inputs/pages/\` - 页面源码文件（可能是 .js, .ts, .vue, .tsx 或 .zip 文件）
+目录结构：
+\`\`\`
+./                          # 当前工作目录
+├── inputs/
+│   ├── prd.md              # PRD 文档
+│   ├── routes/             # 路由配置文件
+│   └── pages/              # 页面源码文件（可能是 .zip，需要解压）
+├── outputs/                # 输出目录（已创建）
+├── evidence/               # 证据目录
+└── logs/                   # 日志目录
+\`\`\`
 
-## 任务
+## 任务步骤
 
-1. 首先读取 \`inputs/prd.md\` 了解需求
-2. 读取 \`inputs/routes/\` 下的路由配置文件（如果是 .zip 文件，请先解压）
-3. 读取 \`inputs/pages/\` 下的页面源码文件（如果是 .zip 文件，请先解压）
-4. 根据 PRD 和源码分析，生成 requirements.json 和 test-cases.json
-5. 将结果保存到 \`outputs/requirements.json\` 和 \`outputs/test-cases.json\`
+1. 读取 \`./inputs/prd.md\` 了解需求
+2. 列出 \`./inputs/routes/\` 目录内容，读取路由配置文件
+3. 列出 \`./inputs/pages/\` 目录内容：
+   - 如果有 .zip 文件，先用 \`unzip\` 命令解压到当前目录
+   - 然后读取解压后的源码文件
+4. 根据 PRD 和源码分析，生成 requirements 和 test-cases
+5. 将结果保存到 \`./outputs/requirements.json\` 和 \`./outputs/test-cases.json\`
 
 ## 输出要求
 
-完成后，请输出一个 JSON 对象，包含：
+完成后，请输出一个 JSON 对象：
 \`\`\`json
 {
-  "requirements": [...],  // 需求列表
-  "testCases": [...]      // 测试用例列表
+  "requirements": [...],
+  "testCases": [...]
 }
 \`\`\`
+
+**注意：所有文件操作都使用相对路径（以 ./ 开头），不要使用绝对路径！**
 `;
         
         const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
