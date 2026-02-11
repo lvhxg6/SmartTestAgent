@@ -48,10 +48,19 @@ export const ProjectConfig: React.FC = () => {
     { enabled: !!projectId }
   );
 
-  // Fetch existing profile
+  // Check if profile exists first
+  const { data: profileExists, isLoading: existsLoading } = trpc.targetProfile.exists.useQuery(
+    { projectId: projectId! },
+    { enabled: !!projectId }
+  );
+
+  // Only fetch profile if it exists
   const { data: profile, isLoading: profileLoading } = trpc.targetProfile.getByProjectId.useQuery(
     { projectId: projectId! },
-    { enabled: !!projectId, retry: false }
+    {
+      enabled: !!projectId && profileExists?.exists === true,
+      retry: false,
+    }
   );
 
   // Upsert mutation
@@ -195,7 +204,7 @@ export const ProjectConfig: React.FC = () => {
     }
   };
 
-  if (projectLoading || profileLoading) {
+  if (projectLoading || existsLoading || (profileExists?.exists && profileLoading)) {
     return <Spin size="large" />;
   }
 
