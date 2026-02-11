@@ -13,6 +13,7 @@ import {
   type PipelineResult,
   PrerequisiteValidator,
   type ResumableStep,
+  CliAdapter,
 } from '@smart-test-agent/core';
 import { prisma, toJsonString, fromJsonString } from '@smart-test-agent/db';
 import type { TestRunState } from '@smart-test-agent/shared';
@@ -689,6 +690,271 @@ export class PipelineRunner {
 
     // 12. 在后台执行 Pipeline
     this.executePipelineAsync(runId, pipeline, pipelineConfig);
+  }
+
+  /**
+   * 基于反馈重新生成测试用例
+   * @param runId 运行 ID
+   * @param feedback 用户反馈信息
+   * @throws Error 如果验证失败
+   * @see Requirements 5.1, 5.2, 5.3
+   */
+  async regenerateTestCases(
+    runId: string,
+    feedback: { feedbackType: string; feedbackDetail: string }
+  ): Promise<void> {
+    console.log(`[PipelineRunner] Regenerating test cases for run: ${runId}`);
+
+    // 1. 验证 TestRun 存在
+    const testRun = await prisma.testRun.findUnique({
+      where: { id: runId },
+    });
+
+    if (!testRun) {
+      throw new Error(`TestRun not found: ${runId}`);
+    }
+
+    // 2. 获取 target profile
+    const targetProfile = await prisma.targetProfile.findUnique({
+      where: { projectId: testRun.projectId },
+    });
+
+    if (!targetProfile) {
+      throw new Error(`Target profile not found for project: ${testRun.projectId}`);
+    }
+
+    // 3. 获取项目信息
+    const project = await prisma.project.findUnique({
+      where: { id: testRun.projectId },
+    });
+
+    if (!project) {
+      throw new Error(`Project not found: ${testRun.projectId}`);
+    }
+
+    // 4. 读取原始 PRD
+    const prdPath = await this.resolvePrdPath(testRun.prdPath, testRun.projectId);
+    let prdContent = '';
+    try {
+      prdContent = await fs.readFile(prdPath, 'utf-8');
+    } catch {
+      console.warn(`[PipelineRunner] Failed to read PRD file: ${prdPath}`);
+    }
+
+    // 5. 读取已生成的测试用例
+    const workspaceRoot = this.config.workspaceRoot;
+    const outputsDir = path.join(workspaceRoot, runId, 'outputs');
+    const testCasesDir = path.join(outputsDir, 'test-cases');
+    const requirementsPath = path.join(outputsDir, 'requirements.json');
+
+    let existingTestCases: unknown[] = [];
+    let requirements: unknown[] = [];
+
+    // 读取需求
+    try {
+      const reqContent = await fs.readFile(requirementsPath, 'utf-8');
+      const parsed = JSON.parse(reqContent);
+      requirements = parsed.requirements || (Array.isArray(parsed) ? parsed : []);
+    } catch {
+      console.warn(`[PipelineRunner] Failed to read requirements: ${requirementsPath}`);
+    }
+
+    // 读取测试用例
+    try {
+      const files = await fs.readdir(testCasesDir);
+      const reqFiles = files.filter((f: string) => f.startsWith('REQ-') && f.endsWith('.json'));
+      
+      for (const reqFile of reqFiles) {
+        try {
+          const filePath = path.join(testCasesDir, reqFile);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const parsed = JSON.parse(content);
+          
+          if (Array.isArray(parsed)) {
+            existingTestCases.push(...parsed);
+          } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
+            existingTestCases.push(...parsed.test_cases);
+          } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
+            existingTestCases.push(...parsed.testCases);
+          }
+        } catch (e) {
+          console.warn(`[PipelineRunner] Failed to parse test case file ${reqFile}:`, e);
+        }
+      }
+    } catch {
+      // 尝试读取单文件格式
+      try {
+        const testCasesPath = path.join(outputsDir, 'test-cases.json');
+        const content = await fs.readFile(testCasesPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        existingTestCases = Array.isArray(parsed) ? parsed : (parsed.test_cases || parsed.testCases || []);
+      } catch (e) {
+        console.warn(`[PipelineRunner] Failed to read test cases:`, e);
+      }
+    }
+
+    // 6. 构建包含反馈的 prompt
+    const feedbackTypeLabels: Record<string, string> = {
+      coverage_incomplete: '测试用例覆盖不全',
+      steps_incorrect: '测试步骤不正确',
+      assertions_inaccurate: '断言不准确',
+      other: '其他问题',
+    };
+
+    const feedbackTypeLabel = feedbackTypeLabels[feedback.feedbackType] || feedback.feedbackType;
+    const testRoutes = fromJsonString<string[]>(testRun.testedRoutes);
+
+    const regeneratePrompt = `# 测试用例重新生成任务
+
+## 背景
+
+用户对之前生成的测试用例提出了反馈，需要根据反馈重新生成更准确的测试用例。
+
+## 用户反馈
+
+**反馈类型**: ${feedbackTypeLabel}
+
+**详细反馈**: ${feedback.feedbackDetail}
+
+## 原始 PRD 文档
+
+${prdContent || '（PRD 文档不可用，请参考已有的需求和测试用例）'}
+
+## 已生成的需求列表
+
+\`\`\`json
+${JSON.stringify(requirements, null, 2)}
+\`\`\`
+
+## 已生成的测试用例（需要改进）
+
+\`\`\`json
+${JSON.stringify(existingTestCases, null, 2)}
+\`\`\`
+
+## 测试路由配置
+
+**本次测试的目标路由：**
+
+${testRoutes.map(r => `- \`${r}\``).join('\n')}
+
+## 任务要求
+
+1. 仔细阅读用户反馈，理解需要改进的地方
+2. 根据反馈类型进行针对性改进：
+   - **覆盖不全**: 增加缺失的测试场景，确保覆盖所有需求点
+   - **步骤不正确**: 修正测试步骤，确保操作顺序和目标元素正确
+   - **断言不准确**: 修正断言条件，确保验证点准确
+   - **其他问题**: 根据具体反馈进行修改
+3. 保持已有测试用例中正确的部分
+4. 确保所有测试用例的 \`route\` 字段使用指定的测试路由
+
+## 输出要求
+
+**1. 需求文件**：\`./outputs/requirements.json\`
+（如果需求没有变化，可以保持原样）
+
+**2. 测试用例文件**：按需求分文件存储
+
+首先清理旧的测试用例文件：
+\`\`\`bash
+rm -rf ./outputs/test-cases/*
+\`\`\`
+
+然后为每个需求创建单独的测试用例文件：
+- \`./outputs/test-cases/REQ-001.json\` - REQ-001 的测试用例
+- \`./outputs/test-cases/REQ-002.json\` - REQ-002 的测试用例
+- ...
+
+每个文件格式：
+\`\`\`json
+{
+  "requirement_id": "REQ-001",
+  "test_cases": [
+    {"case_id": "TC-001", ...},
+    {"case_id": "TC-002", ...}
+  ]
+}
+\`\`\`
+
+写入完成后，输出确认信息：
+\`\`\`json
+{"status": "completed", "requirements_count": X, "test_cases_count": Y}
+\`\`\`
+`;
+
+    // 7. 调用 Claude Code 重新生成
+    const cliAdapter = new CliAdapter();
+    const workspacePath = path.join(workspaceRoot, runId);
+
+    const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+      if (this.io) {
+        this.io.to(`run:${runId}`).emit('cli_log', {
+          runId,
+          source: 'claude',
+          type,
+          message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    };
+
+    try {
+      const result = await cliAdapter.invokeClaudeCode({
+        prompt: regeneratePrompt,
+        workingDir: workspacePath,
+        outputFormat: 'stream-json',
+        onLog,
+      });
+
+      // 保存日志
+      const logsDir = path.join(workspacePath, 'logs');
+      try {
+        await fs.mkdir(logsDir, { recursive: true });
+      } catch { /* ignore */ }
+      await fs.writeFile(
+        path.join(logsDir, 'regenerate.log'),
+        result.rawOutput || result.output || ''
+      );
+
+      if (!result.success) {
+        throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
+      }
+
+      // 8. 更新状态为 awaiting_approval
+      await this.updateRunState(runId, 'awaiting_approval');
+
+      // 9. 发送 WebSocket 事件
+      if (this.io) {
+        this.io.to(`run:${runId}`).emit('regeneration:completed', {
+          runId,
+          timestamp: new Date().toISOString(),
+        });
+
+        this.io.to(`run:${runId}`).emit('approval:required', {
+          runId,
+          testCasesPath: path.join(outputsDir, 'test-cases'),
+        });
+      }
+
+      console.log(`[PipelineRunner] Test cases regenerated for run: ${runId}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[PipelineRunner] Regeneration failed for run ${runId}:`, errorMsg);
+      
+      // 更新状态为失败
+      await this.updateRunState(runId, 'failed', 'internal_error', errorMsg);
+
+      if (this.io) {
+        this.io.to(`run:${runId}`).emit('regeneration:failed', {
+          runId,
+          error: errorMsg,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      throw error;
+    }
   }
 }
 

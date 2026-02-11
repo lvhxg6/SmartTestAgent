@@ -40,6 +40,7 @@ import { RequirementList } from '../components/RequirementList';
 import { TestCaseList } from '../components/TestCaseList';
 import { ApprovalActions } from '../components/ApprovalActions';
 import { ScriptPreviewModal } from '../components/ScriptPreviewModal';
+import { CodexReviewResults } from '../components/CodexReviewResults';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -364,12 +365,39 @@ export const TestRunDetail: React.FC = () => {
             description="请查看测试报告并确认结果"
             style={{ marginBottom: 16 }}
           />
-          <Space>
-            <Button type="primary" onClick={() => navigate(`/reports/${run.id}`)}>
-              查看报告
-            </Button>
-            <Button onClick={() => setConfirmModalOpen(true)}>确认/重测</Button>
-          </Space>
+          <Tabs
+            defaultActiveKey="report"
+            items={[
+              {
+                key: 'report',
+                label: '测试报告',
+                children: (
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Button type="primary" onClick={() => navigate(`/reports/${run.id}`)}>
+                      查看完整报告
+                    </Button>
+                  </Space>
+                ),
+              },
+              {
+                key: 'codex-review',
+                label: 'Codex 审核结果',
+                children: <CodexReviewResults runId={runId!} />,
+              },
+            ]}
+          />
+          <div style={{ marginTop: 16 }}>
+            <Space>
+              <Button onClick={() => setConfirmModalOpen(true)}>确认/重测</Button>
+            </Space>
+          </div>
+        </Card>
+      )}
+
+      {/* Codex review results for completed runs */}
+      {run.state === 'completed' && (
+        <Card title="Codex 审核结果" style={{ marginBottom: 16 }}>
+          <CodexReviewResults runId={runId!} />
         </Card>
       )}
 

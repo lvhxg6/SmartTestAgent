@@ -133,5 +133,28 @@
 3. THE 系统 SHALL 提供 `generateScript` API 生成指定测试用例的 Playwright 脚本
 4. THE 系统 SHALL 提供 `downloadScript` API 下载 Playwright 脚本文件
 5. THE 系统 SHALL 提供 `regenerateTestCases` API 基于反馈重新生成测试用例
-6. ALL API SHALL 返回适当的错误码和错误信息
+6. THE 系统 SHALL 提供 `getCodexReviewResults` API 返回 Codex 审核结果
+7. ALL API SHALL 返回适当的错误码和错误信息
+
+### 需求 9：Codex 审核结果展示
+
+**用户故事：** 作为用户，我希望能够查看 Codex 对测试执行结果的审核意见，以便了解测试的可靠性和潜在问题。
+
+#### 验收标准
+
+1. WHEN 测试执行完成且 Codex 审核完成 THEN 系统 SHALL 在页面展示审核结果
+2. THE 审核结果展示 SHALL 包含以下信息：
+   - 审核摘要（总断言数、同意数、不同意数、不确定数）
+   - 误报检测数量（false positives）
+   - 漏报检测数量（false negatives）
+   - P0 需求覆盖检查结果
+3. WHEN 存在判定冲突 THEN 系统 SHALL 高亮显示冲突的断言
+4. THE 冲突展示 SHALL 包含：
+   - 原始机器判定（pass/fail/error）
+   - Codex 审核判定（agree/disagree/uncertain）
+   - 冲突类型（fact_conflict/evidence_missing/threshold_conflict）
+   - 审核理由
+   - 改进建议
+5. WHEN 存在软断言 THEN 系统 SHALL 展示 Codex 的判定和理由
+6. THE 系统 SHALL 支持按冲突类型筛选审核结果
 

@@ -7,3 +7,4 @@ export * from './report-generator/index.js';
 export * from './target-profile/index.js';
 export * from './pipeline/index.js';
 export * from './pipeline/error-recovery.js';
+export * from './script-generator/index.js';

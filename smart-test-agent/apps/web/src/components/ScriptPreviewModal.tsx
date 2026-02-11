@@ -17,13 +17,16 @@ import {
 import {
   DownloadOutlined,
   CopyOutlined,
+  FileZipOutlined,
 } from '@ant-design/icons';
+import { trpc } from '../lib/trpc';
 
 const { Text } = Typography;
 
 interface ScriptPreviewModalProps {
   open: boolean;
   runId: string;
+  caseIds?: string[];
   onClose: () => void;
 }
 
@@ -73,157 +76,77 @@ const CodeHighlight: React.FC<{ code: string }> = ({ code }) => {
   );
 };
 
-/**
- * 生成示例 Playwright 脚本
- * 实际项目中应该从后端 API 获取
- */
-const generateSampleScript = (runId: string): string => {
-  return `/**
- * Auto-generated Playwright Test Script
- * Run ID: ${runId}
- * Generated at: ${new Date().toISOString()}
- * 
- * 使用方法:
- * 1. 确保已安装 Playwright: npm install playwright
- * 2. 运行脚本: node test-${runId.slice(0, 8)}.js
- */
-
-const { chromium } = require('playwright');
-const fs = require('fs');
-const path = require('path');
-
-// 配置信息（从 target-profile.json 加载）
-const config = {
-  baseUrl: 'http://localhost:3000',
-  browser: {
-    viewport: { width: 1280, height: 720 },
-    locale: 'zh-CN',
-    ignoreHTTPSErrors: true,
-  },
-  login: {
-    loginUrl: '/login',
-    usernameSelector: '#username',
-    passwordSelector: '#password',
-    submitSelector: 'button[type="submit"]',
-    successIndicator: '.dashboard',
-    credentials: {
-      username: 'test_user',
-      password: '******',
-    },
-  },
-};
-
-// 测试用例（从 test-cases.json 加载）
-const testCases = [
-  // 测试用例将在此处填充
-];
-
-// 结果存储
-const results = {
-  run_id: '${runId}',
-  started_at: null,
-  completed_at: null,
-  test_cases: [],
-};
-
-// 截图工具函数
-async function captureScreenshot(page, name) {
-  const dir = 'evidence/screenshots';
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  const screenshotPath = path.join(dir, \`\${name}.png\`);
-  await page.screenshot({ path: screenshotPath });
-  return screenshotPath;
-}
-
-// 登录函数
-async function performLogin(page) {
-  const { login } = config;
-  
-  await page.goto(config.baseUrl + login.loginUrl);
-  await page.locator(login.usernameSelector).fill(login.credentials.username);
-  await page.locator(login.passwordSelector).fill(login.credentials.password);
-  await page.locator(login.submitSelector).click();
-  await page.waitForSelector(login.successIndicator, { timeout: 30000 });
-  await captureScreenshot(page, '00-login-success');
-  
-  console.log('✓ 登录成功');
-}
-
-// 主函数
-async function main() {
-  results.started_at = new Date().toISOString();
-  console.log('开始执行测试...');
-  
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-  
-  const context = await browser.newContext({
-    viewport: config.browser.viewport,
-    locale: config.browser.locale,
-    ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
-  });
-  
-  const page = await context.newPage();
-  
-  try {
-    // 执行登录
-    await performLogin(page);
-    
-    // 执行测试用例
-    for (const testCase of testCases) {
-      console.log(\`执行测试用例: \${testCase.case_id} - \${testCase.title}\`);
-      // 测试用例执行逻辑
-    }
-    
-    console.log('\\n✓ 所有测试执行完成');
-  } catch (error) {
-    console.error('测试执行失败:', error);
-  } finally {
-    await browser.close();
-    
-    results.completed_at = new Date().toISOString();
-    fs.writeFileSync('execution-results.json', JSON.stringify(results, null, 2));
-    console.log('结果已保存到 execution-results.json');
-  }
-}
-
-main().catch(console.error);
-`;
-};
-
 export const ScriptPreviewModal: React.FC<ScriptPreviewModalProps> = ({
   open,
   runId,
+  caseIds,
   onClose,
 }) => {
-  // TODO: 实际项目中应该从后端 API 获取脚本
-  const script = generateSampleScript(runId);
-  const isLoading = false;
+  // 调用真实 API 获取脚本
+  const { data, isLoading, error } = trpc.testRun.generateScript.useQuery(
+    { runId, caseIds },
+    { enabled: open && !!runId }
+  );
+
+  // 下载脚本 mutation
+  const downloadMutation = trpc.testRun.downloadScript.useMutation({
+    onSuccess: (result) => {
+      if (result.format === 'single' && 'content' in result) {
+        // 单文件下载
+        const blob = new Blob([result.content], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        message.success('脚本下载成功');
+      } else if (result.format === 'zip' && 'content' in result && 'encoding' in result && result.encoding === 'base64') {
+        // ZIP 文件下载
+        const byteCharacters = atob(result.content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/zip' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        message.success('脚本包下载成功');
+      }
+    },
+    onError: (err) => {
+      message.error(`下载失败: ${err.message}`);
+    },
+  });
 
   const handleCopy = async () => {
+    if (!data?.content) {
+      message.error('没有可复制的内容');
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(script);
+      await navigator.clipboard.writeText(data.content);
       message.success('脚本已复制到剪贴板');
     } catch {
       message.error('复制失败，请手动复制');
     }
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([script], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `test-${runId.slice(0, 8)}.js`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    message.success('脚本下载成功');
+  const handleDownloadSingle = () => {
+    downloadMutation.mutate({ runId, caseIds, format: 'single' });
+  };
+
+  const handleDownloadZip = () => {
+    downloadMutation.mutate({ runId, caseIds, format: 'zip' });
   };
 
   return (
@@ -233,11 +156,24 @@ export const ScriptPreviewModal: React.FC<ScriptPreviewModalProps> = ({
       onCancel={onClose}
       width={900}
       footer={[
-        <Button key="copy" icon={<CopyOutlined />} onClick={handleCopy}>
+        <Button key="copy" icon={<CopyOutlined />} onClick={handleCopy} disabled={!data?.content}>
           复制脚本
         </Button>,
-        <Button key="download" icon={<DownloadOutlined />} onClick={handleDownload}>
+        <Button 
+          key="download" 
+          icon={<DownloadOutlined />} 
+          onClick={handleDownloadSingle}
+          loading={downloadMutation.isLoading}
+        >
           下载脚本
+        </Button>,
+        <Button 
+          key="download-zip" 
+          icon={<FileZipOutlined />} 
+          onClick={handleDownloadZip}
+          loading={downloadMutation.isLoading}
+        >
+          下载 ZIP
         </Button>,
         <Button key="close" onClick={onClose}>
           关闭
@@ -251,17 +187,28 @@ export const ScriptPreviewModal: React.FC<ScriptPreviewModalProps> = ({
             <Text type="secondary">正在生成脚本...</Text>
           </div>
         </div>
-      ) : (
+      ) : error ? (
+        <Alert
+          type="error"
+          message="生成脚本失败"
+          description={error.message}
+        />
+      ) : data ? (
         <>
           <Alert
             type="info"
-            message="脚本预览"
-            description="这是根据测试用例生成的 Playwright 脚本预览。实际执行时会使用完整的测试用例数据。"
+            message={`脚本预览 - 包含 ${data.testCaseCount} 个测试用例`}
+            description={
+              <Space direction="vertical" size={0}>
+                <Text type="secondary">文件名: {data.filename}</Text>
+                <Text type="secondary">生成时间: {new Date(data.generatedAt).toLocaleString()}</Text>
+              </Space>
+            }
             style={{ marginBottom: 16 }}
           />
-          <CodeHighlight code={script} />
+          <CodeHighlight code={data.content} />
         </>
-      )}
+      ) : null}
     </Modal>
   );
 };

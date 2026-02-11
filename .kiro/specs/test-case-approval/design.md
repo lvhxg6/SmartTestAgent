@@ -655,6 +655,239 @@ stateDiagram-v2
     codex_reviewing --> failed: ERROR
 ```
 
+### 7. Codex 审核结果 API
+
+```typescript
+// apps/server/src/trpc/routers/testRun.ts
+
+/**
+ * Codex 审核结果
+ */
+interface CodexReviewResult {
+  version: string;
+  reviewed_at: string;
+  reviewer: string;
+  run_id: string;
+  reviews: AssertionReview[];
+  soft_assertion_reviews: SoftAssertionReview[];
+  p0_coverage_check: P0CoverageCheck;
+  summary: ReviewSummary;
+}
+
+interface AssertionReview {
+  assertion_id: string;
+  case_id: string;
+  original_verdict: 'pass' | 'fail' | 'error';
+  review_verdict: 'agree' | 'disagree' | 'uncertain';
+  reasoning: string;
+  conflict_type: 'fact_conflict' | 'evidence_missing' | 'threshold_conflict' | null;
+  confidence: number;
+  suggestions?: string[];
+}
+
+interface SoftAssertionReview {
+  assertion_id: string;
+  case_id: string;
+  agent_verdict: 'pass' | 'fail';
+  agent_reasoning: string;
+  confidence: number;
+}
+
+interface P0CoverageCheck {
+  status: 'pass' | 'fail';
+  total_p0_requirements: number;
+  covered_p0_requirements: number;
+  missing_p0_ids: string[];
+  details: P0CoverageDetail[];
+}
+
+interface ReviewSummary {
+  total_assertions_reviewed: number;
+  agreements: number;
+  disagreements: number;
+  uncertain: number;
+  false_positives_detected: number;
+  false_negatives_detected: number;
+}
+
+export const testRunRouter = router({
+  // ... 现有路由 ...
+
+  /**
+   * 获取 Codex 审核结果
+   */
+  getCodexReviewResults: publicProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ input }): Promise<CodexReviewResult | null> => {
+      // 从工作目录读取 codex-review-results.json
+    }),
+});
+```
+
+### 8. CodexReviewResults 前端组件
+
+```typescript
+// apps/web/src/components/CodexReviewResults.tsx
+
+interface CodexReviewResultsProps {
+  runId: string;
+}
+
+export const CodexReviewResults: React.FC<CodexReviewResultsProps> = ({ runId }) => {
+  const { data: reviewResults, isLoading } = trpc.testRun.getCodexReviewResults.useQuery({ runId });
+  
+  if (isLoading) return <Spin />;
+  if (!reviewResults) return <Empty description="暂无审核结果" />;
+  
+  return (
+    <div>
+      {/* 审核摘要卡片 */}
+      <ReviewSummaryCard summary={reviewResults.summary} />
+      
+      {/* P0 覆盖检查 */}
+      <P0CoverageCard coverage={reviewResults.p0_coverage_check} />
+      
+      {/* 冲突列表 */}
+      <ConflictList 
+        reviews={reviewResults.reviews.filter(r => r.review_verdict === 'disagree')} 
+      />
+      
+      {/* 软断言审核 */}
+      <SoftAssertionList reviews={reviewResults.soft_assertion_reviews} />
+    </div>
+  );
+};
+```
+
+#### 8.1 ReviewSummaryCard 组件
+
+```typescript
+// apps/web/src/components/ReviewSummaryCard.tsx
+
+interface ReviewSummaryCardProps {
+  summary: ReviewSummary;
+}
+
+export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({ summary }) => {
+  return (
+    <Card title="审核摘要">
+      <Row gutter={16}>
+        <Col span={6}>
+          <Statistic title="总断言数" value={summary.total_assertions_reviewed} />
+        </Col>
+        <Col span={6}>
+          <Statistic 
+            title="同意" 
+            value={summary.agreements} 
+            valueStyle={{ color: '#3f8600' }}
+          />
+        </Col>
+        <Col span={6}>
+          <Statistic 
+            title="不同意" 
+            value={summary.disagreements} 
+            valueStyle={{ color: '#cf1322' }}
+          />
+        </Col>
+        <Col span={6}>
+          <Statistic title="不确定" value={summary.uncertain} />
+        </Col>
+      </Row>
+      <Divider />
+      <Row gutter={16}>
+        <Col span={12}>
+          <Statistic 
+            title="检测到误报" 
+            value={summary.false_positives_detected}
+            prefix={<WarningOutlined />}
+          />
+        </Col>
+        <Col span={12}>
+          <Statistic 
+            title="检测到漏报" 
+            value={summary.false_negatives_detected}
+            prefix={<ExclamationCircleOutlined />}
+          />
+        </Col>
+      </Row>
+    </Card>
+  );
+};
+```
+
+#### 8.2 ConflictList 组件
+
+```typescript
+// apps/web/src/components/ConflictList.tsx
+
+interface ConflictListProps {
+  reviews: AssertionReview[];
+}
+
+export const ConflictList: React.FC<ConflictListProps> = ({ reviews }) => {
+  const [filterType, setFilterType] = useState<string | null>(null);
+  
+  const filteredReviews = filterType 
+    ? reviews.filter(r => r.conflict_type === filterType)
+    : reviews;
+  
+  return (
+    <Card 
+      title="判定冲突" 
+      extra={
+        <Select 
+          placeholder="筛选冲突类型" 
+          allowClear
+          onChange={setFilterType}
+          style={{ width: 200 }}
+        >
+          <Option value="fact_conflict">事实冲突</Option>
+          <Option value="evidence_missing">证据缺失</Option>
+          <Option value="threshold_conflict">阈值冲突</Option>
+        </Select>
+      }
+    >
+      <List
+        dataSource={filteredReviews}
+        renderItem={(review) => (
+          <List.Item>
+            <List.Item.Meta
+              title={
+                <Space>
+                  <Tag color="red">{review.conflict_type}</Tag>
+                  <Text strong>{review.case_id} / {review.assertion_id}</Text>
+                </Space>
+              }
+              description={
+                <div>
+                  <div>
+                    <Text type="secondary">原始判定: </Text>
+                    <Tag color={review.original_verdict === 'pass' ? 'green' : 'red'}>
+                      {review.original_verdict}
+                    </Tag>
+                    <Text type="secondary"> → Codex 判定: </Text>
+                    <Tag color="orange">{review.review_verdict}</Tag>
+                  </div>
+                  <Paragraph style={{ marginTop: 8 }}>{review.reasoning}</Paragraph>
+                  {review.suggestions && review.suggestions.length > 0 && (
+                    <div>
+                      <Text type="secondary">改进建议:</Text>
+                      <ul>
+                        {review.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          </List.Item>
+        )}
+      />
+    </Card>
+  );
+};
+```
+
 ## 错误处理
 
 | 错误场景 | 错误码 | 错误消息 |
@@ -664,6 +897,7 @@ stateDiagram-v2
 | 达到最大重试次数 | PRECONDITION_FAILED | Maximum regeneration attempts reached |
 | 工作目录文件不存在 | NOT_FOUND | Test cases file not found |
 | 脚本生成失败 | INTERNAL_SERVER_ERROR | Failed to generate script |
+| Codex 审核结果不存在 | NOT_FOUND | Codex review results not found |
 
 ## 测试策略
 
