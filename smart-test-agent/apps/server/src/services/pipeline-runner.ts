@@ -301,18 +301,28 @@ export class PipelineRunner {
       return prdPath;
     }
 
+    // Get the project root (3 levels up from apps/server/src)
+    // Server runs from apps/server, so we need to go up to find docs/
+    const serverRoot = process.cwd();
+    const monorepoRoot = path.resolve(serverRoot, '..', '..'); // smart-test-agent
+    const projectRoot = path.resolve(monorepoRoot, '..'); // parent of smart-test-agent
+
     // Check common locations in order
     const searchPaths = [
-      // Direct path
-      prdPath,
-      // In docs/prd directory
-      path.join('docs', 'prd', prdPath),
-      // In docs directory
-      path.join('docs', prdPath),
+      // Direct path from server root
+      path.join(serverRoot, prdPath),
+      // In docs/prd directory from project root (parent of monorepo)
+      path.join(projectRoot, 'docs', 'prd', prdPath),
+      // In docs directory from project root
+      path.join(projectRoot, 'docs', prdPath),
+      // In docs/prd from monorepo root
+      path.join(monorepoRoot, 'docs', 'prd', prdPath),
+      // In docs from monorepo root
+      path.join(monorepoRoot, 'docs', prdPath),
       // In project uploads directory
       path.join(this.config.workspaceRoot, 'uploads', projectId, prdPath),
       // In data/uploads directory
-      path.join('data', 'uploads', projectId, prdPath),
+      path.join(serverRoot, 'data', 'uploads', projectId, prdPath),
     ];
 
     for (const searchPath of searchPaths) {
@@ -327,6 +337,7 @@ export class PipelineRunner {
 
     // File not found, return original path (will fail with clear error)
     console.warn(`[PipelineRunner] PRD file not found in any location: ${prdPath}`);
+    console.warn(`[PipelineRunner] Searched paths:`, searchPaths);
     return prdPath;
   }
 
