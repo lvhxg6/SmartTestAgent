@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated_at": "2026-02-11T10:00:00.000Z",
+  "generated_at": "2026-02-11T10:30:00.000Z",
   "test_cases": [
     {
       "case_id": "TC-001",
@@ -56,3 +56,8 @@
       "data_cleanup": [],
       "tags": ["smoke", "P0"]
     },
+    {
+      "case_id": "TC-002",
+      "requirement_id": "REQ-001",
+      "route": "/system-maintenance/auto-scan-config",
+      "title": "验证Tab切换加载对应扫描类型配置数据",
