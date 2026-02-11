@@ -224,21 +224,32 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
         const promptPath = path.join(config.promptsDir, 'prd-parse.md');
         const promptTemplate = await fs.readFile(promptPath, 'utf-8');
         
+        // Get the test routes from config
+        const testRoutes = config.routes;
+        
         // Build prompt that tells Claude to read files from the workspace
         const prompt = `${promptTemplate}
 
 ---
 
-## 重要：工作目录说明
+## 重要：测试路由配置
 
-你当前的工作目录已经设置好，包含所有需要的输入文件。**请使用相对路径访问文件，不要使用绝对路径。**
+**本次测试的目标路由（必须使用这些路由，不要从 routes.js 中提取路由）：**
+
+${testRoutes.map(r => `- \`${r}\``).join('\n')}
+
+生成的所有测试用例中的 \`route\` 字段必须使用上面指定的路由路径，不要使用 routes.js 中的菜单 key（如 AUTO_SCAN_CONFIG）。
+
+## 工作目录说明
+
+你当前的工作目录已经设置好，包含所有需要的输入文件。**请使用相对路径访问文件。**
 
 目录结构：
 \`\`\`
 ./                          # 当前工作目录
 ├── inputs/
 │   ├── prd.md              # PRD 文档
-│   ├── routes/             # 路由配置文件
+│   ├── routes/             # 路由配置文件（仅供参考组件结构，不要从中提取路由路径）
 │   └── pages/              # 页面源码文件（可能是 .zip，需要解压）
 ├── outputs/                # 输出目录（已创建）
 ├── evidence/               # 证据目录
@@ -248,12 +259,13 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
 ## 任务步骤
 
 1. 读取 \`./inputs/prd.md\` 了解需求
-2. 列出 \`./inputs/routes/\` 目录内容，读取路由配置文件
-3. 列出 \`./inputs/pages/\` 目录内容：
-   - 如果有 .zip 文件，先用 \`unzip\` 命令解压到当前目录
+2. 读取 \`./inputs/routes/\` 下的路由配置文件（仅用于理解组件结构）
+3. 读取 \`./inputs/pages/\` 下的页面源码文件：
+   - 如果有 .zip 文件，先用 \`unzip\` 命令解压
    - 然后读取解压后的源码文件
 4. 根据 PRD 和源码分析，生成 requirements 和 test-cases
-5. 将结果保存到 \`./outputs/requirements.json\` 和 \`./outputs/test-cases.json\`
+5. **重要**：所有测试用例的 \`route\` 字段必须使用上面指定的测试路由
+6. 将结果保存到 \`./outputs/requirements.json\` 和 \`./outputs/test-cases.json\`
 
 ## 输出要求
 
