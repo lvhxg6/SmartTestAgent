@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated_at": "2026-02-11T00:00:00.000Z",
+  "generated_at": "2026-02-11T10:00:00.000Z",
   "test_cases": [
     {
       "case_id": "TC-001",
@@ -40,3 +40,19 @@
         {
           "assertion_id": "AST-003",
           "type": "element_visible",
+          "target": "getByRole('tab', { name: '系统漏洞' })",
+          "expected": "visible",
+          "description": "验证系统漏洞Tab存在"
+        },
+        {
+          "assertion_id": "AST-004",
+          "type": "element_visible",
+          "target": "getByRole('tab', { name: '外部漏洞' })",
+          "expected": "visible",
+          "description": "验证外部漏洞Tab存在"
+        }
+      ],
+      "data_preparation": [],
+      "data_cleanup": [],
+      "tags": ["smoke", "P0"]
+    },

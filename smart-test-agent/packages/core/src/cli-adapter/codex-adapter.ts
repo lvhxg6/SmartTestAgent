@@ -87,7 +87,7 @@ export class CodexAdapter {
       // Build command with shell initialization to load environment variables from ~/.zshrc
       const codexCmd = `source ~/.zshrc 2>/dev/null; codex ${args.map(arg => `"${arg}"`).join(' ')}`;
 
-      onLog?.('info', `Starting Codex CLI with timeout ${timeout}ms...`);
+      onLog?.('info', `🚀 启动 Codex CLI (超时: ${Math.round(timeout / 1000)}秒)...`);
 
       const proc = spawn('zsh', ['-c', codexCmd], {
         cwd: params.workingDir,
@@ -104,14 +104,21 @@ export class CodexAdapter {
           try {
             const event = JSON.parse(line);
             if (event.type === 'message' && event.content) {
-              onLog?.('stdout', `[Codex] ${event.content.substring(0, 200)}${event.content.length > 200 ? '...' : ''}`);
+              const content = event.content;
+              const displayContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
+              onLog?.('stdout', `💬 ${displayContent}`);
             } else if (event.type === 'result') {
-              onLog?.('stdout', `[Codex] Result: ${event.subtype || 'completed'}`);
+              const statusMap: Record<string, string> = {
+                'success': '✅ 审核完成',
+                'error': '❌ 审核失败',
+              };
+              const status = statusMap[event.subtype] || '📋 审核结束';
+              onLog?.('info', status);
             }
           } catch {
             // Not JSON line, log raw if meaningful
             if (line.length > 0 && line.length < 500) {
-              onLog?.('stdout', line);
+              onLog?.('stdout', `📝 ${line}`);
             }
           }
         }
@@ -127,7 +134,7 @@ export class CodexAdapter {
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;
 
-        onLog?.('info', `Codex CLI exited with code ${exitCode} after ${durationMs}ms`);
+        onLog?.('info', `⏹️ Codex CLI 退出 (代码: ${exitCode}, 耗时: ${Math.round(durationMs / 1000)}秒)`);
 
         // Check for authentication errors in output
         const authErrorPatterns = [
@@ -167,16 +174,16 @@ export class CodexAdapter {
         } else {
           let errorMsg: string;
           if (isTimeout) {
-            errorMsg = `Codex CLI timed out after ${Math.round(durationMs / 1000)}s. Consider increasing timeout or simplifying the task.`;
+            errorMsg = `Codex CLI 超时 (${Math.round(durationMs / 1000)}秒)，请考虑增加超时时间或简化任务`;
           } else if (hasAuthError) {
-            errorMsg = 'Codex CLI authentication error: Please authenticate first';
+            errorMsg = 'Codex CLI 认证错误: 请先进行认证';
           } else if (hasJsonError) {
-            errorMsg = `Codex CLI returned error: ${this.extractErrorMessage(output)}`;
+            errorMsg = `Codex CLI 返回错误: ${this.extractErrorMessage(output)}`;
           } else {
-            errorMsg = errorOutput || `Process exited with code ${exitCode}`;
+            errorMsg = errorOutput || `进程退出代码: ${exitCode}`;
           }
           
-          onLog?.('info', `Error: ${errorMsg}`);
+          onLog?.('stderr', `❌ 错误: ${errorMsg}`);
           
           resolve({
             success: false,
@@ -220,7 +227,6 @@ export class CodexAdapter {
       if (this.capabilities.supportsSuggestMode) {
         args.push('--approval-mode', 'suggest');
       } else {
-        // Degrade to manual interpretation
         this.recordDegradation(
           'suggest-mode',
           'cli-suggest',
@@ -233,11 +239,9 @@ export class CodexAdapter {
     // Output schema with degradation
     if (params.outputSchema) {
       if (this.capabilities.supportsOutputSchema) {
-        // Write schema to temp file
         const schemaPath = await this.writeSchemaToTemp(params.outputSchema);
         args.push('--output-schema', schemaPath);
       } else {
-        // Degrade to prompt-based schema instruction
         this.recordDegradation(
           'output-schema',
           'cli-schema',
@@ -310,13 +314,11 @@ export class CodexAdapter {
    */
   private tryParseJson(output: string): unknown | undefined {
     try {
-      // Try to find JSON in output
       const jsonMatch = output.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
 
-      // Try array
       const arrayMatch = output.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
         return JSON.parse(arrayMatch[0]);

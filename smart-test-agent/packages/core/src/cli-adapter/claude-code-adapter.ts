@@ -52,6 +52,21 @@ export interface ClaudeCodeResult {
 /** Default timeout (15 minutes for complex PRD parsing) */
 const DEFAULT_TIMEOUT = 15 * 60 * 1000;
 
+/** Tool name mapping for Chinese display */
+const TOOL_NAME_MAP: Record<string, string> = {
+  'Read': '📖 读取文件',
+  'Write': '✏️ 写入文件',
+  'Edit': '📝 编辑文件',
+  'Bash': '💻 执行命令',
+  'Glob': '🔍 搜索文件',
+  'Grep': '🔎 搜索内容',
+  'LS': '📂 列出目录',
+  'TodoRead': '📋 读取任务',
+  'TodoWrite': '📝 写入任务',
+  'WebFetch': '🌐 获取网页',
+  'WebSearch': '🔍 搜索网页',
+};
+
 /**
  * Claude Code CLI Adapter
  */
@@ -88,7 +103,7 @@ export class ClaudeCodeAdapter {
       // Build command with shell initialization to load environment variables from ~/.zshrc
       const claudeCmd = `source ~/.zshrc 2>/dev/null; claude ${fullArgs.map(arg => `"${arg}"`).join(' ')}`;
       
-      onLog?.('info', `Starting Claude Code CLI with timeout ${timeout}ms...`);
+      onLog?.('info', `🚀 启动 Claude Code CLI (超时: ${Math.round(timeout / 1000)}秒)...`);
       
       const proc = spawn('zsh', ['-c', claudeCmd], {
         cwd: params.workingDir,
@@ -104,51 +119,9 @@ export class ClaudeCodeAdapter {
         for (const line of lines) {
           try {
             const event = JSON.parse(line);
-            // Extract meaningful info from Claude Code stream-json events
-            // See: https://docs.anthropic.com/en/docs/build-with-claude/computer-use#stream-json-format
-            
-            if (event.type === 'system') {
-              // System initialization message
-              onLog?.('info', `[System] ${event.subtype || 'initialized'}`);
-            } else if (event.type === 'assistant') {
-              // Assistant message with content
-              const content = event.message?.content;
-              if (Array.isArray(content)) {
-                for (const item of content) {
-                  if (item.type === 'text' && item.text) {
-                    // Truncate long text for display
-                    const text = item.text.trim();
-                    if (text.length > 0) {
-                      onLog?.('stdout', text.length > 300 ? text.substring(0, 300) + '...' : text);
-                    }
-                  } else if (item.type === 'tool_use') {
-                    // Tool invocation
-                    const toolInput = item.input ? JSON.stringify(item.input).substring(0, 100) : '';
-                    onLog?.('stdout', `🔧 Tool: ${item.name}${toolInput ? ` (${toolInput}...)` : ''}`);
-                  }
-                }
-              }
-            } else if (event.type === 'user') {
-              // Tool result from user
-              const content = event.message?.content;
-              if (Array.isArray(content)) {
-                for (const item of content) {
-                  if (item.type === 'tool_result') {
-                    const isError = item.is_error;
-                    const resultPreview = typeof item.content === 'string' 
-                      ? item.content.substring(0, 100) 
-                      : JSON.stringify(item.content).substring(0, 100);
-                    onLog?.(isError ? 'stderr' : 'stdout', `${isError ? '❌' : '✅'} Tool result: ${resultPreview}...`);
-                  }
-                }
-              }
-            } else if (event.type === 'result') {
-              // Final result
-              const status = event.subtype === 'success' ? '✅' : event.subtype === 'error' ? '❌' : '📋';
-              onLog?.('info', `${status} Result: ${event.subtype || 'completed'} (${event.duration_ms || 0}ms, cost: $${event.total_cost_usd?.toFixed(4) || '0'})`);
-            }
+            this.handleStreamEvent(event, onLog);
           } catch {
-            // Not JSON line, might be raw output - skip unless meaningful
+            // Not JSON line, skip
           }
         }
       });
@@ -163,7 +136,7 @@ export class ClaudeCodeAdapter {
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;
 
-        onLog?.('info', `Claude Code CLI exited with code ${exitCode} after ${durationMs}ms`);
+        onLog?.('info', `⏹️ Claude Code CLI 退出 (代码: ${exitCode}, 耗时: ${Math.round(durationMs / 1000)}秒)`);
 
         // Check for authentication errors in output (CLI may return 0 but with error message)
         const authErrorPatterns = [
@@ -177,14 +150,13 @@ export class ClaudeCodeAdapter {
         );
 
         // Parse stream-json output to extract final result
-        // Keep full output for debugging, but extract result for processing
         let finalResult: any = null;
         let hasJsonError = false;
-        const lines = output.split('\n').filter(line => line.trim());
+        const outputLines = output.split('\n').filter(l => l.trim());
         
-        for (const line of lines) {
+        for (const l of outputLines) {
           try {
-            const event = JSON.parse(line);
+            const event = JSON.parse(l);
             if (event.type === 'result') {
               finalResult = event;
               if (event.is_error === true) {
@@ -200,8 +172,6 @@ export class ClaudeCodeAdapter {
         const isTimeout = exitCode === 143;
 
         if (exitCode === 0 && !hasAuthError && !hasJsonError) {
-          // Extract the actual result content from stream-json for processing
-          // But keep rawOutput with full stream for debugging
           let resultOutput = output;
           if (finalResult && finalResult.result) {
             resultOutput = finalResult.result;
@@ -210,8 +180,8 @@ export class ClaudeCodeAdapter {
           const parsedOutput = this.tryParseJson(resultOutput);
           resolve({
             success: true,
-            output: resultOutput,  // The extracted result for processing
-            rawOutput: output,     // Full stream-json output for debugging
+            output: resultOutput,
+            rawOutput: output,
             parsedOutput,
             exitCode,
             durationMs,
@@ -220,16 +190,16 @@ export class ClaudeCodeAdapter {
         } else {
           let errorMsg: string;
           if (isTimeout) {
-            errorMsg = `Claude Code CLI timed out after ${Math.round(durationMs / 1000)}s. Consider increasing timeout or simplifying the task.`;
+            errorMsg = `Claude Code CLI 超时 (${Math.round(durationMs / 1000)}秒)，请考虑增加超时时间或简化任务`;
           } else if (hasAuthError) {
-            errorMsg = 'Claude Code CLI authentication error: Please run "claude /login" to authenticate';
+            errorMsg = 'Claude Code CLI 认证错误: 请运行 "claude /login" 进行认证';
           } else if (hasJsonError) {
-            errorMsg = `Claude Code CLI returned error: ${this.extractErrorMessage(output)}`;
+            errorMsg = `Claude Code CLI 返回错误: ${this.extractErrorMessage(output)}`;
           } else {
-            errorMsg = errorOutput || `Process exited with code ${exitCode}`;
+            errorMsg = errorOutput || `进程退出代码: ${exitCode}`;
           }
           
-          onLog?.('info', `Error: ${errorMsg}`);
+          onLog?.('stderr', `❌ 错误: ${errorMsg}`);
           
           resolve({
             success: false,
@@ -263,6 +233,89 @@ export class ClaudeCodeAdapter {
   }
 
   /**
+   * Handles stream-json events and formats them for display
+   */
+  private handleStreamEvent(
+    event: any,
+    onLog?: (type: 'stdout' | 'stderr' | 'info', message: string) => void
+  ): void {
+    if (event.type === 'system') {
+      // System initialization message
+      const subtypeMap: Record<string, string> = {
+        'init': '🔄 系统初始化中...',
+        'initialized': '✅ 系统初始化完成',
+      };
+      onLog?.('info', subtypeMap[event.subtype] || `🔄 系统: ${event.subtype || '就绪'}`);
+    } else if (event.type === 'assistant') {
+      // Assistant message with content
+      const content = event.message?.content;
+      if (Array.isArray(content)) {
+        for (const item of content) {
+          if (item.type === 'text' && item.text) {
+            const text = item.text.trim();
+            if (text.length > 0) {
+              // Truncate long text for display
+              const displayText = text.length > 500 ? text.substring(0, 500) + '...' : text;
+              onLog?.('stdout', `💬 ${displayText}`);
+            }
+          } else if (item.type === 'tool_use') {
+            // Tool invocation - show in readable format
+            const toolDisplay = TOOL_NAME_MAP[item.name] || `🔧 ${item.name}`;
+            
+            // Format tool input for display
+            let inputDisplay = '';
+            if (item.input) {
+              if (item.input.file_path) {
+                inputDisplay = `: ${item.input.file_path}`;
+              } else if (item.input.command) {
+                const cmd = item.input.command;
+                inputDisplay = `: ${cmd.length > 80 ? cmd.substring(0, 80) + '...' : cmd}`;
+              } else if (item.input.pattern) {
+                inputDisplay = `: ${item.input.pattern}`;
+              } else if (item.input.path) {
+                inputDisplay = `: ${item.input.path}`;
+              }
+            }
+            onLog?.('stdout', `${toolDisplay}${inputDisplay}`);
+          }
+        }
+      }
+    } else if (event.type === 'user') {
+      // Tool result from user
+      const content = event.message?.content;
+      if (Array.isArray(content)) {
+        for (const item of content) {
+          if (item.type === 'tool_result') {
+            const isError = item.is_error;
+            if (isError) {
+              // Show error details
+              const errorMsg = typeof item.content === 'string' 
+                ? item.content.substring(0, 200) 
+                : JSON.stringify(item.content).substring(0, 200);
+              onLog?.('stderr', `❌ 执行失败: ${errorMsg}`);
+            } else {
+              // Just show success indicator
+              onLog?.('stdout', `✅ 执行成功`);
+            }
+          }
+        }
+      }
+    } else if (event.type === 'result') {
+      // Final result
+      const statusMap: Record<string, string> = {
+        'success': '✅ 任务完成',
+        'error': '❌ 任务失败',
+        'interrupted': '⚠️ 任务中断',
+      };
+      const status = statusMap[event.subtype] || '📋 任务结束';
+      const duration = event.duration_ms ? `${Math.round(event.duration_ms / 1000)}秒` : '';
+      const cost = event.total_cost_usd ? `$${event.total_cost_usd.toFixed(4)}` : '';
+      const details = [duration, cost].filter(Boolean).join(', ');
+      onLog?.('info', `${status}${details ? ` (${details})` : ''}`);
+    }
+  }
+
+  /**
    * Builds CLI arguments with degradation support
    */
   private buildArgs(params: ClaudeCodeParams): string[] {
@@ -273,7 +326,6 @@ export class ClaudeCodeAdapter {
       if (this.capabilities.supportsStreamJson) {
         args.push('--output-format', 'stream-json');
       } else {
-        // Degrade to json
         args.push('--output-format', 'json');
         this.recordDegradation(
           'output-format',
@@ -291,7 +343,6 @@ export class ClaudeCodeAdapter {
       if (this.capabilities.supportsAllowedTools) {
         args.push('--allowedTools', params.allowedTools.join(','));
       } else {
-        // Degrade to prompt constraints (no CLI flag)
         this.recordDegradation(
           'allowed-tools',
           'cli-restriction',
@@ -350,13 +401,11 @@ export class ClaudeCodeAdapter {
    */
   private tryParseJson(output: string): unknown | undefined {
     try {
-      // Try to find JSON in output (may have other text)
       const jsonMatch = output.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
 
-      // Try array
       const arrayMatch = output.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
         return JSON.parse(arrayMatch[0]);
