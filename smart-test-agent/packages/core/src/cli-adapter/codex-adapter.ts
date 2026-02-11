@@ -81,10 +81,12 @@ export class CodexAdapter {
       let output = '';
       let errorOutput = '';
 
-      const proc = spawn('codex', args, {
+      // Build command with shell initialization to load environment variables from ~/.zshrc
+      const codexCmd = `source ~/.zshrc 2>/dev/null; codex ${args.map(arg => `"${arg}"`).join(' ')}`;
+
+      const proc = spawn('zsh', ['-c', codexCmd], {
         cwd: params.workingDir,
         timeout,
-        shell: true,
       });
 
       proc.stdout?.on('data', (data) => {

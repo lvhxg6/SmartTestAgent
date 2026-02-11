@@ -79,10 +79,12 @@ export class ClaudeCodeAdapter {
       // Add --dangerously-skip-permissions to bypass permission prompts
       const fullArgs = ['--dangerously-skip-permissions', ...args];
       
-      const proc = spawn('claude', fullArgs, {
+      // Build command with shell initialization to load environment variables from ~/.zshrc
+      const claudeCmd = `source ~/.zshrc 2>/dev/null; claude ${fullArgs.map(arg => `"${arg}"`).join(' ')}`;
+      
+      const proc = spawn('zsh', ['-c', claudeCmd], {
         cwd: params.workingDir,
         timeout,
-        shell: true,
       });
 
       proc.stdout?.on('data', (data) => {
