@@ -126,15 +126,68 @@ export class TestPipeline {
       await this.transitionState(runId, 'START_PARSING');
 
       // Step 1: Source indexing
+      // Adapted to work with uploaded route files instead of frontendRoot
       const indexResult = await this.executeStep('source_indexing', async () => {
         const contexts: SourceContext[] = [];
+        const sourceCode = config.targetProfile.sourceCode as { routeFiles?: string[]; pageFiles?: string[] };
+        
+        // Read uploaded route files if available
+        const routeFileContents: string[] = [];
+        if (sourceCode?.routeFiles && sourceCode.routeFiles.length > 0) {
+          for (const routeFile of sourceCode.routeFiles) {
+            try {
+              const content = await fs.readFile(routeFile, 'utf-8');
+              routeFileContents.push(content);
+            } catch (err) {
+              console.warn(`Could not read route file: ${routeFile}`, err);
+            }
+          }
+        }
+
+        // Read uploaded page files if available
+        const pageFileContents: string[] = [];
+        if (sourceCode?.pageFiles && sourceCode.pageFiles.length > 0) {
+          for (const pageFile of sourceCode.pageFiles) {
+            try {
+              const content = await fs.readFile(pageFile, 'utf-8');
+              pageFileContents.push(content);
+            } catch (err) {
+              console.warn(`Could not read page file: ${pageFile}`, err);
+            }
+          }
+        }
+
+        // Create minimal source context for each route
         for (const route of config.routes) {
-          const context = await this.sourceIndexer.generateSourceContext(route, config.targetProfile);
+          const context: SourceContext = {
+            route,
+            component: {
+              filePath: sourceCode?.pageFiles?.[0] || 'unknown',
+              framework: config.targetProfile.uiFramework === 'antd' ? 'react' : 'vue',
+              apiImports: [],
+              truncated: false,
+            },
+            apis: [],
+            framework: config.targetProfile.uiFramework === 'antd' ? 'react' : 'vue',
+            // Include raw file contents for AI processing
+            rawRouteFiles: routeFileContents,
+            rawPageFiles: pageFileContents,
+          };
           contexts.push(context);
         }
+
         const contextPath = path.join(workspace!.root, 'source-context');
         await fs.mkdir(contextPath, { recursive: true });
         await fs.writeFile(path.join(contextPath, 'contexts.json'), JSON.stringify(contexts, null, 2));
+        
+        // Also save raw files for reference
+        if (routeFileContents.length > 0) {
+          await fs.writeFile(path.join(contextPath, 'route-files.txt'), routeFileContents.join('\n\n---\n\n'));
+        }
+        if (pageFileContents.length > 0) {
+          await fs.writeFile(path.join(contextPath, 'page-files.txt'), pageFileContents.join('\n\n---\n\n'));
+        }
+
         return { sourceContextPath: path.join(contextPath, 'contexts.json') };
       }, runId);
       steps.push(indexResult);

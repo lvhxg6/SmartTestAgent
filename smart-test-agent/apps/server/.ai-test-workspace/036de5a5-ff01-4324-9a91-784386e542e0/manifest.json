@@ -1,0 +1,20 @@
+{
+  "runId": "036de5a5-ff01-4324-9a91-784386e542e0",
+  "projectId": "0ecb74fd-d026-4ae3-ac8c-9f7c25bf3773",
+  "status": "created",
+  "agentVersions": {
+    "claudeCode": "unknown",
+    "codex": "unknown"
+  },
+  "promptVersions": {
+    "prdParse": "v1",
+    "uiTestExecute": "v1",
+    "reviewResults": "v1"
+  },
+  "artifactChecksums": {},
+  "decisionLog": [],
+  "envFingerprint": {},
+  "degradationDecisions": [],
+  "createdAt": "2026-02-11T06:27:36.717Z",
+  "updatedAt": "2026-02-11T06:27:36.717Z"
+}

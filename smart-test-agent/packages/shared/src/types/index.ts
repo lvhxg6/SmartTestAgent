@@ -787,6 +787,10 @@ export interface SourceContext {
   apis: ExtractedApi[];
   /** Framework type */
   framework: FrameworkType;
+  /** Raw route file contents (for uploaded files) */
+  rawRouteFiles?: string[];
+  /** Raw page file contents (for uploaded files) */
+  rawPageFiles?: string[];
 }
 
 // ============================================================================
