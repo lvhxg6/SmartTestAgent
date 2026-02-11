@@ -218,7 +218,31 @@ export class TestPipeline {
           prompt: promptTemplate + '\n\n---\n\nPRD Content:\n' + prdContent,
           outputFormat: 'json',
         });
-        const parsed = JSON.parse(result.output);
+        
+        // Check if Claude Code invocation was successful
+        if (!result.success) {
+          throw new Error(`Claude Code invocation failed: ${result.error || 'Unknown error'}`);
+        }
+        
+        // Check if output is empty
+        if (!result.output || result.output.trim() === '') {
+          throw new Error('Claude Code returned empty output');
+        }
+        
+        // Try to parse JSON output
+        let parsed: { requirements?: unknown[]; testCases?: unknown[] };
+        try {
+          parsed = JSON.parse(result.output);
+        } catch (parseError) {
+          // Try to extract JSON from output
+          const jsonMatch = result.output.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error(`Failed to parse Claude Code output as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+          }
+        }
+        
         await fs.writeFile(path.join(workspace!.root, 'requirements.json'), JSON.stringify(parsed.requirements || [], null, 2));
         await fs.writeFile(path.join(workspace!.root, 'test-cases.json'), JSON.stringify(parsed.testCases || [], null, 2));
         return {
@@ -245,7 +269,31 @@ export class TestPipeline {
           outputFormat: 'json',
           allowedTools: ['Bash', 'Read', 'Write'],
         });
-        const executionResults = JSON.parse(result.output);
+        
+        // Check if Claude Code invocation was successful
+        if (!result.success) {
+          throw new Error(`Claude Code invocation failed: ${result.error || 'Unknown error'}`);
+        }
+        
+        // Check if output is empty
+        if (!result.output || result.output.trim() === '') {
+          throw new Error('Claude Code returned empty output');
+        }
+        
+        // Try to parse JSON output
+        let executionResults: unknown;
+        try {
+          executionResults = JSON.parse(result.output);
+        } catch (parseError) {
+          // Try to extract JSON from output
+          const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            executionResults = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error(`Failed to parse Claude Code output as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+          }
+        }
+        
         await fs.writeFile(path.join(workspace!.root, 'execution-results.json'), JSON.stringify(executionResults, null, 2));
         return {
           executionResultsPath: path.join(workspace!.root, 'execution-results.json'),
@@ -268,7 +316,31 @@ export class TestPipeline {
         const result = await this.cliAdapter.invokeCodex({
           prompt: reviewPrompt + '\n\n---\n\nExecution Results:\n' + JSON.stringify(executionResults, null, 2),
         });
-        const reviewResults = JSON.parse(result.output);
+        
+        // Check if Codex invocation was successful
+        if (!result.success) {
+          throw new Error(`Codex invocation failed: ${result.error || 'Unknown error'}`);
+        }
+        
+        // Check if output is empty
+        if (!result.output || result.output.trim() === '') {
+          throw new Error('Codex returned empty output');
+        }
+        
+        // Try to parse JSON output
+        let reviewResults: unknown;
+        try {
+          reviewResults = JSON.parse(result.output);
+        } catch (parseError) {
+          // Try to extract JSON from output (Codex may include extra text)
+          const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            reviewResults = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error(`Failed to parse Codex output as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+          }
+        }
+        
         await fs.writeFile(path.join(workspace!.root, 'codex-review-results.json'), JSON.stringify(reviewResults, null, 2));
         return { reviewResultsPath: path.join(workspace!.root, 'codex-review-results.json') };
       }, runId);

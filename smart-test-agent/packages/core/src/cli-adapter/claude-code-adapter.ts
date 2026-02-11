@@ -94,7 +94,29 @@ export class ClaudeCodeAdapter {
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;
 
-        if (exitCode === 0) {
+        // Check for authentication errors in output (CLI may return 0 but with error message)
+        const authErrorPatterns = [
+          'Not logged in',
+          'Please run /login',
+          'Authentication required',
+          'API key not found',
+        ];
+        const hasAuthError = authErrorPatterns.some(pattern => 
+          output.includes(pattern) || errorOutput.includes(pattern)
+        );
+
+        // Check for is_error flag in JSON output
+        let hasJsonError = false;
+        try {
+          const parsed = JSON.parse(output);
+          if (parsed && typeof parsed === 'object' && parsed.is_error === true) {
+            hasJsonError = true;
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+
+        if (exitCode === 0 && !hasAuthError && !hasJsonError) {
           const parsedOutput = this.tryParseJson(output);
           resolve({
             success: true,
@@ -105,11 +127,16 @@ export class ClaudeCodeAdapter {
             degradations: this.degradations,
           });
         } else {
+          const errorMsg = hasAuthError 
+            ? 'Claude Code CLI authentication error: Please run "claude /login" to authenticate'
+            : hasJsonError
+            ? `Claude Code CLI returned error: ${this.extractErrorMessage(output)}`
+            : errorOutput || `Process exited with code ${exitCode}`;
           resolve({
             success: false,
             output,
-            error: errorOutput || `Process exited with code ${exitCode}`,
-            exitCode,
+            error: errorMsg,
+            exitCode: hasAuthError || hasJsonError ? -2 : exitCode,
             durationMs,
             degradations: this.degradations,
           });
@@ -202,6 +229,21 @@ export class ClaudeCodeAdapter {
       reason,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Extracts error message from JSON output
+   */
+  private extractErrorMessage(output: string): string {
+    try {
+      const parsed = JSON.parse(output);
+      if (parsed && typeof parsed === 'object') {
+        return parsed.result || parsed.error || parsed.message || 'Unknown error';
+      }
+    } catch {
+      // Not JSON
+    }
+    return output.substring(0, 200);
   }
 
   /**
