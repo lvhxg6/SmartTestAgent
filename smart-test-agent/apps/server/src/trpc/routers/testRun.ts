@@ -9,6 +9,7 @@ import { router, publicProcedure } from '../trpc.js';
 import { TRPCError } from '@trpc/server';
 import { prisma, toJsonString, fromJsonString, fromJsonStringNullable } from '@smart-test-agent/db';
 import { getPipelineRunner } from '../../services/pipeline-runner.js';
+import { RESUMABLE_STEP_ORDER } from '@smart-test-agent/core';
 
 /**
  * Test run state enum
@@ -586,5 +587,140 @@ export const testRunRouter = router({
         inProgress,
         successRate: total > 0 ? completed / total : 0,
       };
+    }),
+
+  /**
+   * 获取可恢复的步骤列表
+   * @see Requirements 3.1
+   */
+  getResumableSteps: publicProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      // 验证 TestRun 存在
+      const run = await prisma.testRun.findUnique({
+        where: { id: input.runId },
+      });
+
+      if (!run) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Test run with id ${input.runId} not found`,
+        });
+      }
+
+      // 获取可恢复步骤
+      const pipelineRunner = getPipelineRunner();
+      const steps = await pipelineRunner.getResumableSteps(input.runId);
+
+      return {
+        runId: input.runId,
+        currentState: run.state,
+        steps,
+      };
+    }),
+
+  /**
+   * 恢复执行 Pipeline
+   * @see Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6
+   */
+  resumeRun: publicProcedure
+    .input(z.object({
+      runId: z.string().uuid(),
+      fromStep: z.enum([
+        'prd_parsing',
+        'test_execution',
+        'codex_review',
+        'cross_validation',
+        'report_generation',
+        'quality_gate',
+      ]),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // 验证 TestRun 存在
+      const run = await prisma.testRun.findUnique({
+        where: { id: input.runId },
+      });
+
+      if (!run) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Test run with id ${input.runId} not found`,
+        });
+      }
+
+      // 验证状态允许恢复
+      if (run.state === 'executing' || run.state === 'codex_reviewing') {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Test run is already running (state: ${run.state})`,
+        });
+      }
+
+      const pipelineRunner = getPipelineRunner();
+
+      // 设置 Socket.IO（如果可用）
+      if (ctx.io) {
+        pipelineRunner.setSocketIO(ctx.io);
+      }
+
+      try {
+        // 恢复执行 Pipeline
+        await pipelineRunner.resumePipeline(input.runId, input.fromStep);
+
+        // 更新 decision log
+        const updatedLog = addDecisionLogEntry(
+          run.decisionLog,
+          'pipeline_resumed',
+          `Resumed from step: ${input.fromStep}`
+        );
+
+        await prisma.testRun.update({
+          where: { id: input.runId },
+          data: {
+            decisionLog: updatedLog,
+          },
+        });
+
+        // Emit WebSocket event
+        if (ctx.io) {
+          ctx.io.to(`run:${input.runId}`).emit('pipeline:resumed', {
+            runId: input.runId,
+            fromStep: input.fromStep,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        return {
+          success: true,
+          runId: input.runId,
+          fromStep: input.fromStep,
+          timestamp: new Date().toISOString(),
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // 根据错误类型返回适当的错误码
+        if (errorMessage.includes('not found')) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: errorMessage,
+          });
+        } else if (errorMessage.includes('Missing prerequisite files')) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: errorMessage,
+          });
+        } else if (errorMessage.includes('already running')) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: errorMessage,
+          });
+        } else {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: errorMessage,
+          });
+        }
+      }
     }),
 });

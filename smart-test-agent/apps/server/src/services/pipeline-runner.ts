@@ -7,7 +7,13 @@
  */
 
 import { Server as SocketIOServer } from 'socket.io';
-import { TestPipeline, type PipelineConfig, type PipelineResult } from '@smart-test-agent/core';
+import { 
+  TestPipeline, 
+  type PipelineConfig, 
+  type PipelineResult,
+  PrerequisiteValidator,
+  type ResumableStep,
+} from '@smart-test-agent/core';
 import { prisma, toJsonString, fromJsonString } from '@smart-test-agent/db';
 import type { TestRunState } from '@smart-test-agent/shared';
 import * as path from 'path';
@@ -24,6 +30,25 @@ const STEP_TO_STATE: Record<string, TestRunState> = {
   report_generation: 'report_ready',
   quality_gate: 'report_ready',
 };
+
+/**
+ * 恢复执行时的步骤到状态映射
+ * @see Requirements 6.1, 6.4
+ */
+const RESUME_STEP_TO_STATE: Record<ResumableStep, TestRunState> = {
+  prd_parsing: 'parsing',
+  test_execution: 'executing',
+  codex_review: 'codex_reviewing',
+  cross_validation: 'codex_reviewing',
+  report_generation: 'report_ready',
+  quality_gate: 'report_ready',
+};
+
+/**
+ * 不允许恢复执行的状态
+ * @see Requirements 1.5
+ */
+const NON_RESUMABLE_STATES: TestRunState[] = ['executing', 'codex_reviewing'];
 
 export interface PipelineRunnerConfig {
   workspaceRoot: string;
@@ -368,6 +393,178 @@ export class PipelineRunner {
    */
   getRunningCount(): number {
     return this.runningPipelines.size;
+  }
+
+  /**
+   * 恢复执行 Pipeline
+   * @param runId 运行 ID
+   * @param fromStep 从哪个步骤开始恢复
+   * @throws Error 如果验证失败
+   * @see Requirements 1.1, 1.2, 1.3, 1.5, 6.1, 6.2, 6.3, 6.5
+   */
+  async resumePipeline(runId: string, fromStep: ResumableStep): Promise<void> {
+    console.log(`[PipelineRunner] Resuming pipeline for run: ${runId} from step: ${fromStep}`);
+
+    // 1. 验证 TestRun 存在
+    const testRun = await prisma.testRun.findUnique({
+      where: { id: runId },
+    });
+
+    if (!testRun) {
+      throw new Error(`TestRun not found: ${runId}`);
+    }
+
+    // 2. 验证 TestRun 状态允许恢复（非 executing/codex_reviewing）
+    if (NON_RESUMABLE_STATES.includes(testRun.state as TestRunState)) {
+      throw new Error(`TestRun is already running (state: ${testRun.state})`);
+    }
+
+    // 3. 验证前置文件存在
+    const validator = new PrerequisiteValidator(this.config.workspaceRoot);
+    const validation = await validator.validateStep(runId, fromStep);
+    
+    if (!validation.valid) {
+      throw new Error(`Missing prerequisite files: ${validation.missingFiles.join(', ')}`);
+    }
+
+    // 4. 获取 target profile
+    const targetProfile = await prisma.targetProfile.findUnique({
+      where: { projectId: testRun.projectId },
+    });
+
+    if (!targetProfile) {
+      throw new Error(`Target profile not found for project: ${testRun.projectId}`);
+    }
+
+    // 5. 获取项目信息
+    const project = await prisma.project.findUnique({
+      where: { id: testRun.projectId },
+    });
+
+    if (!project) {
+      throw new Error(`Project not found: ${testRun.projectId}`);
+    }
+
+    // 6. 转换 target profile
+    const profileConfig = this.convertTargetProfile(targetProfile);
+
+    // 7. 解析 PRD 路径
+    const prdPath = await this.resolvePrdPath(testRun.prdPath, testRun.projectId);
+
+    // 8. 创建 Pipeline 配置，设置 startFromStep 和 isResume
+    const pipelineConfig: PipelineConfig = {
+      projectId: testRun.projectId,
+      prdPath,
+      routes: fromJsonString<string[]>(testRun.testedRoutes),
+      targetProfile: profileConfig,
+      workspaceRoot: this.config.workspaceRoot,
+      promptsDir: this.config.promptsDir,
+      existingRunId: runId,
+      skipStateTransitions: true,
+      startFromStep: fromStep,
+      isResume: true,
+    };
+
+    // 9. 更新 TestRun 状态为恢复步骤对应的状态
+    const newState = RESUME_STEP_TO_STATE[fromStep];
+    await this.updateRunState(runId, newState, null, undefined);
+
+    // 10. 创建并配置 Pipeline
+    const pipeline = new TestPipeline();
+    this.runningPipelines.set(runId, pipeline);
+
+    // 11. 设置事件处理器
+    pipeline.onEvent(async (event) => {
+      console.log(`[PipelineRunner] Resume Event: ${event.type} for run ${event.runId}`, event.data);
+
+      // Emit to WebSocket
+      if (this.io) {
+        this.io.to(`run:${runId}`).emit('pipeline:event', event);
+      }
+
+      // 处理 pipeline_resumed 事件
+      if (event.type === 'pipeline_resumed') {
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('pipeline:resumed', {
+            runId,
+            fromStep: event.data.fromStep,
+            timestamp: event.data.timestamp,
+          });
+        }
+      }
+
+      // 处理 step_skipped 事件
+      if (event.type === 'step_skipped') {
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('step:skipped', {
+            runId,
+            step: event.data.step,
+            timestamp: event.data.timestamp,
+          });
+        }
+      }
+
+      // Update database state based on step
+      if (event.type === 'step_started') {
+        const step = event.data.step as string;
+        const stepState = STEP_TO_STATE[step];
+        if (stepState) {
+          await this.updateRunState(runId, stepState);
+        }
+      }
+
+      if (event.type === 'step_failed') {
+        const errorMsg = event.data.error as string;
+        console.error(`[PipelineRunner] Step failed: ${event.data.step}`, errorMsg);
+      }
+
+      if (event.type === 'approval_required') {
+        await this.updateRunState(runId, 'awaiting_approval');
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('approval:required', {
+            runId,
+            testCasesPath: event.data.testCasesPath,
+          });
+        }
+      }
+
+      if (event.type === 'confirmation_required') {
+        await this.updateRunState(runId, 'report_ready');
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('confirmation:required', {
+            runId,
+            reportPath: event.data.reportPath,
+          });
+        }
+      }
+
+      // Forward CLI log events to WebSocket
+      if (event.type === 'cli_log') {
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('cli_log', {
+            runId,
+            source: event.data.source,
+            type: event.data.type,
+            message: event.data.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    // 12. 在后台执行 Pipeline
+    this.executePipelineAsync(runId, pipeline, pipelineConfig);
+  }
+
+  /**
+   * 获取可恢复的步骤列表
+   * @param runId 运行 ID
+   * @returns 可恢复步骤列表
+   * @see Requirements 3.1
+   */
+  async getResumableSteps(runId: string) {
+    const validator = new PrerequisiteValidator(this.config.workspaceRoot);
+    return validator.getResumableSteps(runId);
   }
 }
 

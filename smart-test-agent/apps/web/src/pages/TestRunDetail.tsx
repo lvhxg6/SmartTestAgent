@@ -27,10 +27,12 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
   ClockCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { trpc } from '../lib/trpc';
 import { getSocket, joinTestRun, leaveTestRun, SocketEvents } from '../lib/socket';
+import { ResumeRunDialog } from '../components/ResumeRunDialog';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -58,6 +60,7 @@ export const TestRunDetail: React.FC = () => {
   const navigate = useNavigate();
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [comments, setComments] = useState('');
   const [progress, setProgress] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<any[]>([]);
@@ -244,6 +247,24 @@ export const TestRunDetail: React.FC = () => {
         </Descriptions>
       </Card>
 
+      {/* Resume execution section - show when not actively running */}
+      {!['executing', 'codex_reviewing', 'parsing', 'generating'].includes(run.state) && (
+        <Card title="恢复执行" style={{ marginBottom: 16 }}>
+          <Alert
+            type="info"
+            message="断点续跑"
+            description="如果之前的执行中断，可以从某个步骤恢复执行，复用已有的输出文件。"
+            style={{ marginBottom: 16 }}
+          />
+          <Button 
+            icon={<ReloadOutlined />}
+            onClick={() => setResumeDialogOpen(true)}
+          >
+            恢复执行
+          </Button>
+        </Card>
+      )}
+
       {/* Approval section */}
       {run.state === 'awaiting_approval' && (
         <Card title="测试用例审批" style={{ marginBottom: 16 }}>
@@ -417,6 +438,14 @@ export const TestRunDetail: React.FC = () => {
           <Button onClick={() => setConfirmModalOpen(false)}>取消</Button>
         </Space>
       </Modal>
+
+      {/* Resume Run Dialog */}
+      <ResumeRunDialog
+        open={resumeDialogOpen}
+        runId={runId!}
+        onClose={() => setResumeDialogOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 };

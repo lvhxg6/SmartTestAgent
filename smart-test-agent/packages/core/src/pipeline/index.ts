@@ -32,6 +32,11 @@ import { ReportGenerator } from '../report-generator/index.js';
 import { calculateRC, calculateAPR, evaluateGate } from '../quality-gate/index.js';
 import { createWorkspace, type WorkspaceStructure } from '../workspace/workspace-manager.js';
 import { createManifest, saveManifest } from '../workspace/manifest-manager.js';
+import {
+  STEP_ORDER,
+  type ResumableStep,
+  type PipelineStep,
+} from './prerequisite-validator.js';
 import type {
   TargetProfile,
   StateEvent,
@@ -42,6 +47,19 @@ import type {
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// Re-export types from prerequisite-validator
+export {
+  PrerequisiteValidator,
+  STEP_PREREQUISITES,
+  STEP_ORDER,
+  RESUMABLE_STEP_ORDER,
+  STEP_LABELS,
+  type PipelineStep,
+  type ResumableStep,
+  type PrerequisiteValidationResult,
+  type ResumableStepInfo,
+} from './prerequisite-validator.js';
+
 export interface PipelineConfig {
   projectId: string;
   prdPath: string;
@@ -51,6 +69,10 @@ export interface PipelineConfig {
   promptsDir: string;
   existingRunId?: string;
   skipStateTransitions?: boolean;
+  /** 从指定步骤开始执行（恢复执行时使用） */
+  startFromStep?: ResumableStep;
+  /** 标记是否为恢复执行 */
+  isResume?: boolean;
 }
 
 export interface StepResult {
@@ -74,6 +96,8 @@ export type PipelineEventType =
   | 'step_started'
   | 'step_completed'
   | 'step_failed'
+  | 'step_skipped'
+  | 'pipeline_resumed'
   | 'state_changed'
   | 'screenshot_captured'
   | 'approval_required'
@@ -117,6 +141,36 @@ export class TestPipeline {
     }
   }
 
+  /**
+   * 判断指定步骤是否应该被跳过
+   * @param step 步骤名称
+   * @param config Pipeline 配置
+   * @returns 是否应该跳过
+   */
+  private shouldSkipStep(step: PipelineStep, config: PipelineConfig): boolean {
+    if (!config.isResume || !config.startFromStep) {
+      return false;
+    }
+    const stepIndex = STEP_ORDER.indexOf(step);
+    const startIndex = STEP_ORDER.indexOf(config.startFromStep);
+    return stepIndex < startIndex;
+  }
+
+  /**
+   * 创建跳过步骤的结果
+   * @param step 步骤名称
+   * @param runId 运行 ID
+   * @returns 跳过的步骤结果
+   */
+  private createSkippedStepResult(step: string, runId: string): StepResult {
+    this.emit('step_skipped', runId, { step, timestamp: new Date().toISOString() });
+    return {
+      step,
+      status: 'skipped',
+      duration: 0,
+    };
+  }
+
   async execute(config: PipelineConfig): Promise<PipelineResult> {
     const steps: StepResult[] = [];
     let runId = config.existingRunId || '';
@@ -124,83 +178,96 @@ export class TestPipeline {
     
     this.skipStateTransitions = config.skipStateTransitions ?? false;
 
+    // 如果是恢复执行，发送 pipeline_resumed 事件
+    if (config.isResume && config.startFromStep && runId) {
+      this.emit('pipeline_resumed', runId, {
+        fromStep: config.startFromStep,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     try {
       // Step 0: Initialize workspace and copy input files
-      const initResult = await this.executeStep('initialize', async () => {
-        if (!runId) {
-          const testRun = await this.orchestrator.createRun({
-            projectId: config.projectId,
-            prdPath: config.prdPath,
-            routes: config.routes,
-          });
-          runId = testRun.id;
-        }
+      if (this.shouldSkipStep('initialize', config)) {
+        // 跳过 initialize 步骤，加载现有工作目录
+        steps.push(this.createSkippedStepResult('initialize', runId));
+        const workspacePath = path.join(config.workspaceRoot, runId);
         workspace = await createWorkspace(config.workspaceRoot, runId);
-        
-        // Create directory structure
-        const inputsDir = path.join(workspace.root, 'inputs');
-        const outputsDir = path.join(workspace.root, 'outputs');
-        const logsDir = path.join(workspace.root, 'logs');
-        await fs.mkdir(path.join(inputsDir, 'routes'), { recursive: true });
-        await fs.mkdir(path.join(inputsDir, 'pages'), { recursive: true });
-        await fs.mkdir(outputsDir, { recursive: true });
-        await fs.mkdir(logsDir, { recursive: true });
-        
-        // Copy PRD file
-        const prdContent = await fs.readFile(config.prdPath, 'utf-8');
-        await fs.writeFile(path.join(inputsDir, 'prd.md'), prdContent);
-        
-        // Copy route files
-        const sourceCode = config.targetProfile.sourceCode as { routeFiles?: string[]; pageFiles?: string[] };
-        if (sourceCode?.routeFiles) {
-          for (const routeFile of sourceCode.routeFiles) {
-            try {
-              const fileName = path.basename(routeFile);
-              await fs.copyFile(routeFile, path.join(inputsDir, 'routes', fileName));
-            } catch (err) {
-              console.warn(`Could not copy route file: ${routeFile}`, err);
+      } else {
+        const initResult = await this.executeStep('initialize', async () => {
+          if (!runId) {
+            const testRun = await this.orchestrator.createRun({
+              projectId: config.projectId,
+              prdPath: config.prdPath,
+              routes: config.routes,
+            });
+            runId = testRun.id;
+          }
+          workspace = await createWorkspace(config.workspaceRoot, runId);
+          
+          // Create directory structure
+          const inputsDir = path.join(workspace.root, 'inputs');
+          const outputsDir = path.join(workspace.root, 'outputs');
+          const logsDir = path.join(workspace.root, 'logs');
+          await fs.mkdir(path.join(inputsDir, 'routes'), { recursive: true });
+          await fs.mkdir(path.join(inputsDir, 'pages'), { recursive: true });
+          await fs.mkdir(outputsDir, { recursive: true });
+          await fs.mkdir(logsDir, { recursive: true });
+          
+          // Copy PRD file
+          const prdContent = await fs.readFile(config.prdPath, 'utf-8');
+          await fs.writeFile(path.join(inputsDir, 'prd.md'), prdContent);
+          
+          // Copy route files
+          const sourceCode = config.targetProfile.sourceCode as { routeFiles?: string[]; pageFiles?: string[] };
+          if (sourceCode?.routeFiles) {
+            for (const routeFile of sourceCode.routeFiles) {
+              try {
+                const fileName = path.basename(routeFile);
+                await fs.copyFile(routeFile, path.join(inputsDir, 'routes', fileName));
+              } catch (err) {
+                console.warn(`Could not copy route file: ${routeFile}`, err);
+              }
             }
           }
-        }
-        
-        // Copy page files
-        if (sourceCode?.pageFiles) {
-          for (const pageFile of sourceCode.pageFiles) {
-            try {
-              const fileName = path.basename(pageFile);
-              await fs.copyFile(pageFile, path.join(inputsDir, 'pages', fileName));
-            } catch (err) {
-              console.warn(`Could not copy page file: ${pageFile}`, err);
+          
+          // Copy page files
+          if (sourceCode?.pageFiles) {
+            for (const pageFile of sourceCode.pageFiles) {
+              try {
+                const fileName = path.basename(pageFile);
+                await fs.copyFile(pageFile, path.join(inputsDir, 'pages', fileName));
+              } catch (err) {
+                console.warn(`Could not copy page file: ${pageFile}`, err);
+              }
             }
           }
-        }
-        
-        // Create manifest
-        const manifest = createManifest(
-          runId,
-          config.projectId,
-          { claudeCode: 'unknown', codex: 'unknown' },
-          { prdParse: 'v1', uiTestExecute: 'v1', reviewResults: 'v1' }
-        );
-        await saveManifest(workspace.manifest, manifest);
-        
-        // Write target profile for test execution
-        // Only include necessary fields for security (no sensitive data in logs)
-        const targetProfileForExecution = {
-          baseUrl: config.targetProfile.baseUrl,
-          login: config.targetProfile.login,
-          browser: config.targetProfile.browser,
-          allowedRoutes: config.targetProfile.allowedRoutes,
-          uiFramework: config.targetProfile.uiFramework,
-          antdQuirks: config.targetProfile.antdQuirks,
-        };
-        await fs.writeFile(
-          path.join(inputsDir, 'target-profile.json'),
-          JSON.stringify(targetProfileForExecution, null, 2)
-        );
-        
-        // Create README for the workspace
-        const readme = `# 测试运行工作目录
+          
+          // Create manifest
+          const manifest = createManifest(
+            runId,
+            config.projectId,
+            { claudeCode: 'unknown', codex: 'unknown' },
+            { prdParse: 'v1', uiTestExecute: 'v1', reviewResults: 'v1' }
+          );
+          await saveManifest(workspace.manifest, manifest);
+          
+          // Write target profile for test execution
+          const targetProfileForExecution = {
+            baseUrl: config.targetProfile.baseUrl,
+            login: config.targetProfile.login,
+            browser: config.targetProfile.browser,
+            allowedRoutes: config.targetProfile.allowedRoutes,
+            uiFramework: config.targetProfile.uiFramework,
+            antdQuirks: config.targetProfile.antdQuirks,
+          };
+          await fs.writeFile(
+            path.join(inputsDir, 'target-profile.json'),
+            JSON.stringify(targetProfileForExecution, null, 2)
+          );
+          
+          // Create README for the workspace
+          const readme = `# 测试运行工作目录
 
 运行 ID: ${runId}
 项目 ID: ${config.projectId}
@@ -223,27 +290,153 @@ export class TestPipeline {
 
 ${config.routes.map(r => `- ${r}`).join('\n')}
 `;
-        await fs.writeFile(path.join(workspace.root, 'README.md'), readme);
-        
-        return { workspacePath: workspace.root, runId };
-      }, runId);
-      steps.push(initResult);
-      if (initResult.status === 'failed' || !workspace) {
-        return this.createFailedResult(runId, steps, initResult.error);
+          await fs.writeFile(path.join(workspace.root, 'README.md'), readme);
+          
+          return { workspacePath: workspace.root, runId };
+        }, runId);
+        steps.push(initResult);
+        if (initResult.status === 'failed' || !workspace) {
+          return this.createFailedResult(runId, steps, initResult.error);
+        }
       }
 
       await this.transitionState(runId, 'START_PARSING');
 
-      // Step 1: PRD parsing - run Claude Code in workspace directory
-      const parseResult = await this.executeStep('prd_parsing', async () => {
-        const promptPath = path.join(config.promptsDir, 'prd-parse.md');
-        const promptTemplate = await fs.readFile(promptPath, 'utf-8');
-        
-        // Get the test routes from config
-        const testRoutes = config.routes;
-        
-        // Build prompt that tells Claude to read files from the workspace
-        const prompt = `${promptTemplate}
+      // Step 1: PRD parsing
+      let parseResult: StepResult;
+      if (this.shouldSkipStep('prd_parsing', config)) {
+        parseResult = this.createSkippedStepResult('prd_parsing', runId);
+        // 设置 artifacts 以便后续步骤使用
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        parseResult.artifacts = {
+          requirementsPath: path.join(outputsDir, 'requirements.json'),
+          testCasesPath: path.join(outputsDir, 'test-cases.json'),
+        };
+      } else {
+        parseResult = await this.executePrdParsing(config, workspace!, runId);
+      }
+      steps.push(parseResult);
+      if (parseResult.status === 'failed') {
+        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
+        return this.createFailedResult(runId, steps, parseResult.error);
+      }
+
+      await this.transitionState(runId, 'GENERATION_COMPLETE');
+      if (!this.shouldSkipStep('prd_parsing', config)) {
+        this.emit('approval_required', runId, { testCasesPath: parseResult.artifacts?.testCasesPath });
+      }
+
+      // Step 2: Test execution
+      let execResult: StepResult;
+      if (this.shouldSkipStep('test_execution', config)) {
+        execResult = this.createSkippedStepResult('test_execution', runId);
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        execResult.artifacts = {
+          executionResultsPath: path.join(outputsDir, 'execution-results.json'),
+          screenshotsDir: path.join(workspace!.root, 'evidence', 'screenshots'),
+        };
+      } else {
+        execResult = await this.executeTestExecution(config, workspace!, runId, parseResult);
+      }
+      steps.push(execResult);
+      if (execResult.status === 'failed') {
+        await this.transitionState(runId, 'ERROR', { errorType: 'playwright_error' });
+        return this.createFailedResult(runId, steps, execResult.error);
+      }
+
+      await this.transitionState(runId, 'EXECUTION_COMPLETE');
+
+      // Step 3: Codex review
+      let reviewResult: StepResult;
+      if (this.shouldSkipStep('codex_review', config)) {
+        reviewResult = this.createSkippedStepResult('codex_review', runId);
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        reviewResult.artifacts = {
+          reviewResultsPath: path.join(outputsDir, 'codex-review-results.json'),
+        };
+      } else {
+        reviewResult = await this.executeCodexReview(config, workspace!, runId, execResult);
+      }
+      steps.push(reviewResult);
+      if (reviewResult.status === 'failed') {
+        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
+        return this.createFailedResult(runId, steps, reviewResult.error);
+      }
+
+      // Step 4: Cross-validation
+      let validationResult: StepResult;
+      if (this.shouldSkipStep('cross_validation', config)) {
+        validationResult = this.createSkippedStepResult('cross_validation', runId);
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        validationResult.artifacts = {
+          crossValidationPath: path.join(outputsDir, 'cross-validation-results.json'),
+          conflictCount: 0,
+        };
+      } else {
+        validationResult = await this.executeCrossValidation(workspace!, runId);
+      }
+      steps.push(validationResult);
+      if (validationResult.status === 'failed') {
+        await this.transitionState(runId, 'ERROR', { errorType: 'verdict_conflict' });
+        return this.createFailedResult(runId, steps, validationResult.error);
+      }
+
+      // Step 5: Generate report
+      let reportResult: StepResult;
+      if (this.shouldSkipStep('report_generation', config)) {
+        reportResult = this.createSkippedStepResult('report_generation', runId);
+        const outputsDir = path.join(workspace!.root, 'outputs');
+        reportResult.artifacts = {
+          reportPath: path.join(outputsDir, 'report.html'),
+        };
+      } else {
+        reportResult = await this.executeReportGeneration(workspace!, runId);
+      }
+      steps.push(reportResult);
+      if (reportResult.status === 'failed') {
+        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
+        return this.createFailedResult(runId, steps, reportResult.error);
+      }
+
+      // Step 6: Quality gate
+      const gateResult = await this.executeQualityGate(workspace!, runId);
+      steps.push(gateResult);
+
+      await this.transitionState(runId, 'REVIEW_COMPLETE');
+      this.emit('confirmation_required', runId, { reportPath: reportResult.artifacts?.reportPath });
+
+      return {
+        runId,
+        status: 'completed',
+        steps,
+        reportPath: reportResult.artifacts?.reportPath as string,
+        qualityMetrics: {
+          rc: gateResult.artifacts?.rc as number || 0,
+          apr: gateResult.artifacts?.apr as number || 0,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return this.createFailedResult(runId, steps, errorMessage);
+    }
+  }
+
+
+  /**
+   * 执行 PRD 解析步骤
+   */
+  private async executePrdParsing(
+    config: PipelineConfig,
+    workspace: WorkspaceStructure,
+    runId: string
+  ): Promise<StepResult> {
+    return this.executeStep('prd_parsing', async () => {
+      const promptPath = path.join(config.promptsDir, 'prd-parse.md');
+      const promptTemplate = await fs.readFile(promptPath, 'utf-8');
+      
+      const testRoutes = config.routes;
+      
+      const prompt = `${promptTemplate}
 
 ---
 
@@ -339,210 +532,180 @@ mkdir -p ./outputs/test-cases
 - 如果文件太大，可以分段写入
 - 确保 JSON 格式正确
 `;
-        
-        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
-          this.emit('cli_log', runId, { source: 'claude', type, message });
-        };
-        
-        // Run Claude Code in the workspace directory
-        const result = await this.cliAdapter.invokeClaudeCode({
-          prompt,
-          workingDir: workspace!.root,
-          outputFormat: 'stream-json',
-          onLog,
-        });
-        
-        // Save raw output for debugging
-        await fs.writeFile(
-          path.join(workspace!.root, 'logs', 'prd-parse.log'),
-          result.rawOutput || result.output || ''
-        );
-        
-        if (!result.success) {
-          throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
-        }
-        
-        // Check if files were written directly by Claude
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        const requirementsPath = path.join(outputsDir, 'requirements.json');
-        const testCasesPath = path.join(outputsDir, 'test-cases.json');
-        const testCasesDir = path.join(outputsDir, 'test-cases');
-        const testCasesIndexPath = path.join(outputsDir, 'test-cases-index.json');
-        
-        let requirementsExist = false;
-        let testCasesExist = false;
-        let testCasesDirExist = false;
-        
-        try {
-          await fs.access(requirementsPath);
-          requirementsExist = true;
-        } catch { /* file doesn't exist */ }
-        
-        try {
-          await fs.access(testCasesPath);
-          testCasesExist = true;
-        } catch { /* file doesn't exist */ }
-        
-        try {
-          const stat = await fs.stat(testCasesDir);
-          testCasesDirExist = stat.isDirectory();
-        } catch { /* directory doesn't exist */ }
-        
-        // If Claude wrote files directly, use them
-        if (requirementsExist && testCasesExist) {
-          // Validate JSON format
-          try {
-            JSON.parse(await fs.readFile(requirementsPath, 'utf-8'));
-            JSON.parse(await fs.readFile(testCasesPath, 'utf-8'));
-            return {
-              requirementsPath,
-              testCasesPath,
-            };
-          } catch (e) {
-            throw new Error(`Claude 写入的文件 JSON 格式错误: ${e instanceof Error ? e.message : '未知错误'}`);
-          }
-        }
-        
-        // Check for multi-file test cases format (new format)
-        if (requirementsExist && testCasesDirExist) {
-          console.log('[Pipeline] 检测到多文件测试用例格式，正在合并...');
-          
-          // Read all REQ-*.json files from test-cases directory
-          const files = await fs.readdir(testCasesDir);
-          const reqFiles = files.filter(f => f.startsWith('REQ-') && f.endsWith('.json'));
-          
-          if (reqFiles.length > 0) {
-            const allTestCases: unknown[] = [];
-            
-            for (const reqFile of reqFiles) {
-              try {
-                const filePath = path.join(testCasesDir, reqFile);
-                const content = await fs.readFile(filePath, 'utf-8');
-                const parsed = JSON.parse(content);
-                
-                // Handle both formats: { test_cases: [...] } or [...]
-                if (Array.isArray(parsed)) {
-                  allTestCases.push(...parsed);
-                } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
-                  allTestCases.push(...parsed.test_cases);
-                } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
-                  allTestCases.push(...parsed.testCases);
-                }
-              } catch (e) {
-                console.warn(`[Pipeline] 无法解析测试用例文件 ${reqFile}:`, e);
-              }
-            }
-            
-            if (allTestCases.length > 0) {
-              // Write merged test cases to single file for downstream processing
-              await fs.writeFile(testCasesPath, JSON.stringify(allTestCases, null, 2));
-              console.log(`[Pipeline] 已合并 ${reqFiles.length} 个文件，共 ${allTestCases.length} 个测试用例`);
-              
-              return {
-                requirementsPath,
-                testCasesPath,
-              };
-            }
-          }
-          
-          // If we have index file, try to use it
-          try {
-            await fs.access(testCasesIndexPath);
-            const indexContent = await fs.readFile(testCasesIndexPath, 'utf-8');
-            const index = JSON.parse(indexContent);
-            console.log(`[Pipeline] 测试用例索引: ${index.total_test_cases || 0} 个测试用例`);
-          } catch { /* index doesn't exist */ }
-        }
-        
-        // If only requirements exist, try to parse test cases from output
-        if (requirementsExist && !testCasesExist && !testCasesDirExist) {
-          // Try to extract test cases from output
-          let testCases: unknown[] = [];
-          
-          if (result.output && result.output.trim()) {
-            try {
-              const parsed = JSON.parse(result.output);
-              if (parsed.testCases) {
-                testCases = parsed.testCases;
-              }
-            } catch {
-              const jsonMatch = result.output.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                try {
-                  const parsed = JSON.parse(jsonMatch[0]);
-                  if (parsed.testCases) {
-                    testCases = parsed.testCases;
-                  }
-                } catch { /* ignore */ }
-              }
-            }
-          }
-          
-          // Write test cases if extracted, otherwise throw error
-          if (testCases.length > 0) {
-            await fs.writeFile(testCasesPath, JSON.stringify(testCases, null, 2));
-            return {
-              requirementsPath,
-              testCasesPath,
-            };
-          } else {
-            throw new Error('Claude 未能生成 test-cases.json 文件或 test-cases/ 目录');
-          }
-        }
-        
-        // Fallback: try to parse from output
-        if (!result.output || result.output.trim() === '') {
-          throw new Error('Claude Code 返回空输出且未写入文件');
-        }
-        
-        let parsed: { requirements?: unknown[]; testCases?: unknown[] };
-        try {
-          parsed = JSON.parse(result.output);
-        } catch {
-          const jsonMatch = result.output.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[0]);
-          } else {
-            throw new Error('无法解析 Claude Code 输出为 JSON');
-          }
-        }
-        
-        // Save to outputs directory
-        await fs.writeFile(
-          requirementsPath,
-          JSON.stringify(parsed.requirements || [], null, 2)
-        );
-        await fs.writeFile(
-          testCasesPath,
-          JSON.stringify(parsed.testCases || [], null, 2)
-        );
-        
-        return {
-          requirementsPath: path.join(outputsDir, 'requirements.json'),
-          testCasesPath: path.join(outputsDir, 'test-cases.json'),
-        };
-      }, runId);
-      steps.push(parseResult);
-      if (parseResult.status === 'failed') {
-        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
-        return this.createFailedResult(runId, steps, parseResult.error);
+      
+      const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+        this.emit('cli_log', runId, { source: 'claude', type, message });
+      };
+      
+      const result = await this.cliAdapter.invokeClaudeCode({
+        prompt,
+        workingDir: workspace.root,
+        outputFormat: 'stream-json',
+        onLog,
+      });
+      
+      await fs.writeFile(
+        path.join(workspace.root, 'logs', 'prd-parse.log'),
+        result.rawOutput || result.output || ''
+      );
+      
+      if (!result.success) {
+        throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
       }
-
-      await this.transitionState(runId, 'GENERATION_COMPLETE');
-      this.emit('approval_required', runId, { testCasesPath: parseResult.artifacts?.testCasesPath });
-
-      // Step 2: Test execution
-      const execResult = await this.executeStep('test_execution', async () => {
-        const testCases = JSON.parse(
-          await fs.readFile(parseResult.artifacts?.testCasesPath as string, 'utf-8')
-        );
-        const execPromptPath = path.join(config.promptsDir, 'ui-test-execute.md');
-        const execPrompt = await fs.readFile(execPromptPath, 'utf-8');
+      
+      const outputsDir = path.join(workspace.root, 'outputs');
+      const requirementsPath = path.join(outputsDir, 'requirements.json');
+      const testCasesPath = path.join(outputsDir, 'test-cases.json');
+      const testCasesDir = path.join(outputsDir, 'test-cases');
+      const testCasesIndexPath = path.join(outputsDir, 'test-cases-index.json');
+      
+      let requirementsExist = false;
+      let testCasesExist = false;
+      let testCasesDirExist = false;
+      
+      try {
+        await fs.access(requirementsPath);
+        requirementsExist = true;
+      } catch { /* file doesn't exist */ }
+      
+      try {
+        await fs.access(testCasesPath);
+        testCasesExist = true;
+      } catch { /* file doesn't exist */ }
+      
+      try {
+        const stat = await fs.stat(testCasesDir);
+        testCasesDirExist = stat.isDirectory();
+      } catch { /* directory doesn't exist */ }
+      
+      if (requirementsExist && testCasesExist) {
+        try {
+          JSON.parse(await fs.readFile(requirementsPath, 'utf-8'));
+          JSON.parse(await fs.readFile(testCasesPath, 'utf-8'));
+          return { requirementsPath, testCasesPath };
+        } catch (e) {
+          throw new Error(`Claude 写入的文件 JSON 格式错误: ${e instanceof Error ? e.message : '未知错误'}`);
+        }
+      }
+      
+      if (requirementsExist && testCasesDirExist) {
+        console.log('[Pipeline] 检测到多文件测试用例格式，正在合并...');
         
-        // Read target profile for the prompt
-        const targetProfile = config.targetProfile;
+        const files = await fs.readdir(testCasesDir);
+        const reqFiles = files.filter(f => f.startsWith('REQ-') && f.endsWith('.json'));
         
-        const prompt = `${execPrompt}
+        if (reqFiles.length > 0) {
+          const allTestCases: unknown[] = [];
+          
+          for (const reqFile of reqFiles) {
+            try {
+              const filePath = path.join(testCasesDir, reqFile);
+              const content = await fs.readFile(filePath, 'utf-8');
+              const parsed = JSON.parse(content);
+              
+              if (Array.isArray(parsed)) {
+                allTestCases.push(...parsed);
+              } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
+                allTestCases.push(...parsed.test_cases);
+              } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
+                allTestCases.push(...parsed.testCases);
+              }
+            } catch (e) {
+              console.warn(`[Pipeline] 无法解析测试用例文件 ${reqFile}:`, e);
+            }
+          }
+          
+          if (allTestCases.length > 0) {
+            await fs.writeFile(testCasesPath, JSON.stringify(allTestCases, null, 2));
+            console.log(`[Pipeline] 已合并 ${reqFiles.length} 个文件，共 ${allTestCases.length} 个测试用例`);
+            return { requirementsPath, testCasesPath };
+          }
+        }
+        
+        try {
+          await fs.access(testCasesIndexPath);
+          const indexContent = await fs.readFile(testCasesIndexPath, 'utf-8');
+          const index = JSON.parse(indexContent);
+          console.log(`[Pipeline] 测试用例索引: ${index.total_test_cases || 0} 个测试用例`);
+        } catch { /* index doesn't exist */ }
+      }
+      
+      if (requirementsExist && !testCasesExist && !testCasesDirExist) {
+        let testCases: unknown[] = [];
+        
+        if (result.output && result.output.trim()) {
+          try {
+            const parsed = JSON.parse(result.output);
+            if (parsed.testCases) {
+              testCases = parsed.testCases;
+            }
+          } catch {
+            const jsonMatch = result.output.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.testCases) {
+                  testCases = parsed.testCases;
+                }
+              } catch { /* ignore */ }
+            }
+          }
+        }
+        
+        if (testCases.length > 0) {
+          await fs.writeFile(testCasesPath, JSON.stringify(testCases, null, 2));
+          return { requirementsPath, testCasesPath };
+        } else {
+          throw new Error('Claude 未能生成 test-cases.json 文件或 test-cases/ 目录');
+        }
+      }
+      
+      if (!result.output || result.output.trim() === '') {
+        throw new Error('Claude Code 返回空输出且未写入文件');
+      }
+      
+      let parsed: { requirements?: unknown[]; testCases?: unknown[] };
+      try {
+        parsed = JSON.parse(result.output);
+      } catch {
+        const jsonMatch = result.output.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('无法解析 Claude Code 输出为 JSON');
+        }
+      }
+      
+      await fs.writeFile(requirementsPath, JSON.stringify(parsed.requirements || [], null, 2));
+      await fs.writeFile(testCasesPath, JSON.stringify(parsed.testCases || [], null, 2));
+      
+      return {
+        requirementsPath: path.join(outputsDir, 'requirements.json'),
+        testCasesPath: path.join(outputsDir, 'test-cases.json'),
+      };
+    }, runId);
+  }
+
+
+  /**
+   * 执行测试执行步骤
+   */
+  private async executeTestExecution(
+    config: PipelineConfig,
+    workspace: WorkspaceStructure,
+    runId: string,
+    parseResult: StepResult
+  ): Promise<StepResult> {
+    return this.executeStep('test_execution', async () => {
+      const testCases = JSON.parse(
+        await fs.readFile(parseResult.artifacts?.testCasesPath as string, 'utf-8')
+      );
+      const execPromptPath = path.join(config.promptsDir, 'ui-test-execute.md');
+      const execPrompt = await fs.readFile(execPromptPath, 'utf-8');
+      
+      const targetProfile = config.targetProfile;
+      
+      const prompt = `${execPrompt}
 
 ---
 
@@ -587,69 +750,70 @@ ${JSON.stringify(testCases, null, 2)}
 4. 将截图保存到 \`evidence/screenshots/\` 目录
 5. 将执行结果保存到 \`outputs/execution-results.json\`
 `;
-        
-        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
-          this.emit('cli_log', runId, { source: 'claude', type, message });
-        };
-        
-        const result = await this.cliAdapter.invokeClaudeCode({
-          prompt,
-          workingDir: workspace!.root,
-          outputFormat: 'stream-json',
-          allowedTools: ['Bash', 'Read', 'Write'],
-          onLog,
-        });
-        
-        await fs.writeFile(
-          path.join(workspace!.root, 'logs', 'test-execute.log'),
-          result.rawOutput || result.output || ''
-        );
-        
-        if (!result.success) {
-          throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
-        }
-        
-        // Parse execution results
-        let executionResults: unknown;
-        try {
-          executionResults = JSON.parse(result.output);
-        } catch {
-          const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            executionResults = JSON.parse(jsonMatch[0]);
-          } else {
-            throw new Error('无法解析执行结果为 JSON');
-          }
-        }
-        
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        await fs.writeFile(
-          path.join(outputsDir, 'execution-results.json'),
-          JSON.stringify(executionResults, null, 2)
-        );
-        
-        return {
-          executionResultsPath: path.join(outputsDir, 'execution-results.json'),
-          screenshotsDir: path.join(workspace!.root, 'evidence', 'screenshots'),
-        };
-      }, runId);
-      steps.push(execResult);
-      if (execResult.status === 'failed') {
-        await this.transitionState(runId, 'ERROR', { errorType: 'playwright_error' });
-        return this.createFailedResult(runId, steps, execResult.error);
+      
+      const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+        this.emit('cli_log', runId, { source: 'claude', type, message });
+      };
+      
+      const result = await this.cliAdapter.invokeClaudeCode({
+        prompt,
+        workingDir: workspace.root,
+        outputFormat: 'stream-json',
+        allowedTools: ['Bash', 'Read', 'Write'],
+        onLog,
+      });
+      
+      await fs.writeFile(
+        path.join(workspace.root, 'logs', 'test-execute.log'),
+        result.rawOutput || result.output || ''
+      );
+      
+      if (!result.success) {
+        throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
       }
+      
+      let executionResults: unknown;
+      try {
+        executionResults = JSON.parse(result.output);
+      } catch {
+        const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          executionResults = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('无法解析执行结果为 JSON');
+        }
+      }
+      
+      const outputsDir = path.join(workspace.root, 'outputs');
+      await fs.writeFile(
+        path.join(outputsDir, 'execution-results.json'),
+        JSON.stringify(executionResults, null, 2)
+      );
+      
+      return {
+        executionResultsPath: path.join(outputsDir, 'execution-results.json'),
+        screenshotsDir: path.join(workspace.root, 'evidence', 'screenshots'),
+      };
+    }, runId);
+  }
 
-      await this.transitionState(runId, 'EXECUTION_COMPLETE');
-
-      // Step 3: Codex review
-      const reviewResult = await this.executeStep('codex_review', async () => {
-        const executionResults = JSON.parse(
-          await fs.readFile(execResult.artifacts?.executionResultsPath as string, 'utf-8')
-        );
-        const reviewPromptPath = path.join(config.promptsDir, 'review-results.md');
-        const reviewPrompt = await fs.readFile(reviewPromptPath, 'utf-8');
-        
-        const prompt = `${reviewPrompt}
+  /**
+   * 执行 Codex 审核步骤
+   */
+  private async executeCodexReview(
+    config: PipelineConfig,
+    workspace: WorkspaceStructure,
+    runId: string,
+    execResult: StepResult
+  ): Promise<StepResult> {
+    return this.executeStep('codex_review', async () => {
+      const executionResults = JSON.parse(
+        await fs.readFile(execResult.artifacts?.executionResultsPath as string, 'utf-8')
+      );
+      const reviewPromptPath = path.join(config.promptsDir, 'review-results.md');
+      const reviewPrompt = await fs.readFile(reviewPromptPath, 'utf-8');
+      
+      const prompt = `${reviewPrompt}
 
 ---
 
@@ -657,160 +821,147 @@ ${JSON.stringify(testCases, null, 2)}
 
 ${JSON.stringify(executionResults, null, 2)}
 `;
-        
-        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
-          this.emit('cli_log', runId, { source: 'codex', type, message });
-        };
-        
-        const result = await this.cliAdapter.invokeCodex({
-          prompt,
-          workingDir: workspace!.root,
-          onLog,
-        });
-        
-        await fs.writeFile(
-          path.join(workspace!.root, 'logs', 'codex-review.log'),
-          result.output || ''
-        );
-        
-        if (!result.success) {
-          throw new Error(`Codex 调用失败: ${result.error || '未知错误'}`);
-        }
-        
-        let reviewResults: unknown;
-        try {
-          reviewResults = JSON.parse(result.output);
-        } catch {
-          const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            reviewResults = JSON.parse(jsonMatch[0]);
-          } else {
-            throw new Error('无法解析 Codex 输出为 JSON');
-          }
-        }
-        
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        await fs.writeFile(
-          path.join(outputsDir, 'codex-review-results.json'),
-          JSON.stringify(reviewResults, null, 2)
-        );
-        
-        return { reviewResultsPath: path.join(outputsDir, 'codex-review-results.json') };
-      }, runId);
-      steps.push(reviewResult);
-      if (reviewResult.status === 'failed') {
-        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
-        return this.createFailedResult(runId, steps, reviewResult.error);
-      }
-
-      // Step 4: Cross-validation
-      const validationResult = await this.executeStep('cross_validation', async () => {
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        const requirements: Requirement[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
-        );
-        const testCases: TestCase[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
-        );
-        const reviewResults = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'codex-review-results.json'), 'utf-8')
-        );
-        const executionResults = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'execution-results.json'), 'utf-8')
-        );
-        
-        const assertions: Assertion[] = executionResults.testCases?.flatMap(
-          (tc: { assertions?: Assertion[] }) => tc.assertions || []
-        ) || [];
-        
-        const crossValidationResult = this.crossValidator.crossValidate(
-          assertions, reviewResults, requirements, testCases
-        );
-        
-        await fs.writeFile(
-          path.join(outputsDir, 'cross-validation-results.json'),
-          JSON.stringify(crossValidationResult, null, 2)
-        );
-        
-        return {
-          crossValidationPath: path.join(outputsDir, 'cross-validation-results.json'),
-          conflictCount: crossValidationResult.arbitrationSummary.conflicts,
-        };
-      }, runId);
-      steps.push(validationResult);
-      if (validationResult.status === 'failed') {
-        await this.transitionState(runId, 'ERROR', { errorType: 'verdict_conflict' });
-        return this.createFailedResult(runId, steps, validationResult.error);
-      }
-
-      // Step 5: Generate report
-      const reportResult = await this.executeStep('report_generation', async () => {
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        const requirements: Requirement[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
-        );
-        const testCases: TestCase[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
-        );
-        const crossValidationResults = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'cross-validation-results.json'), 'utf-8')
-        );
-        
-        const { reportPath } = this.reportGenerator.generateReport(
-          crossValidationResults.updatedAssertions || [],
-          testCases,
-          requirements,
-          { runId, outputDir: outputsDir }
-        );
-        
-        return { reportPath };
-      }, runId);
-      steps.push(reportResult);
-      if (reportResult.status === 'failed') {
-        await this.transitionState(runId, 'ERROR', { errorType: 'internal_error' });
-        return this.createFailedResult(runId, steps, reportResult.error);
-      }
-
-      // Step 6: Quality gate
-      const gateResult = await this.executeStep('quality_gate', async () => {
-        const outputsDir = path.join(workspace!.root, 'outputs');
-        const requirements: Requirement[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
-        );
-        const testCases: TestCase[] = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
-        );
-        const crossValidationResults = JSON.parse(
-          await fs.readFile(path.join(outputsDir, 'cross-validation-results.json'), 'utf-8')
-        );
-        
-        const rc = calculateRC(requirements, testCases);
-        const apr = calculateAPR(crossValidationResults.updatedAssertions || []);
-        const gateStatus = evaluateGate(
-          requirements, testCases, crossValidationResults.updatedAssertions || []
-        );
-        
-        return { rc: rc.value, apr: apr.value, passed: gateStatus.passed, blocked: gateStatus.blocked };
-      }, runId);
-      steps.push(gateResult);
-
-      await this.transitionState(runId, 'REVIEW_COMPLETE');
-      this.emit('confirmation_required', runId, { reportPath: reportResult.artifacts?.reportPath });
-
-      return {
-        runId,
-        status: 'completed',
-        steps,
-        reportPath: reportResult.artifacts?.reportPath as string,
-        qualityMetrics: {
-          rc: gateResult.artifacts?.rc as number || 0,
-          apr: gateResult.artifacts?.apr as number || 0,
-        },
+      
+      const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+        this.emit('cli_log', runId, { source: 'codex', type, message });
       };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return this.createFailedResult(runId, steps, errorMessage);
-    }
+      
+      const result = await this.cliAdapter.invokeCodex({
+        prompt,
+        workingDir: workspace.root,
+        onLog,
+      });
+      
+      await fs.writeFile(
+        path.join(workspace.root, 'logs', 'codex-review.log'),
+        result.output || ''
+      );
+      
+      if (!result.success) {
+        throw new Error(`Codex 调用失败: ${result.error || '未知错误'}`);
+      }
+      
+      let reviewResults: unknown;
+      try {
+        reviewResults = JSON.parse(result.output);
+      } catch {
+        const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          reviewResults = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('无法解析 Codex 输出为 JSON');
+        }
+      }
+      
+      const outputsDir = path.join(workspace.root, 'outputs');
+      await fs.writeFile(
+        path.join(outputsDir, 'codex-review-results.json'),
+        JSON.stringify(reviewResults, null, 2)
+      );
+      
+      return { reviewResultsPath: path.join(outputsDir, 'codex-review-results.json') };
+    }, runId);
+  }
+
+  /**
+   * 执行交叉验证步骤
+   */
+  private async executeCrossValidation(
+    workspace: WorkspaceStructure,
+    runId: string
+  ): Promise<StepResult> {
+    return this.executeStep('cross_validation', async () => {
+      const outputsDir = path.join(workspace.root, 'outputs');
+      const requirements: Requirement[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
+      );
+      const testCases: TestCase[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
+      );
+      const reviewResults = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'codex-review-results.json'), 'utf-8')
+      );
+      const executionResults = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'execution-results.json'), 'utf-8')
+      );
+      
+      const assertions: Assertion[] = executionResults.testCases?.flatMap(
+        (tc: { assertions?: Assertion[] }) => tc.assertions || []
+      ) || [];
+      
+      const crossValidationResult = this.crossValidator.crossValidate(
+        assertions, reviewResults, requirements, testCases
+      );
+      
+      await fs.writeFile(
+        path.join(outputsDir, 'cross-validation-results.json'),
+        JSON.stringify(crossValidationResult, null, 2)
+      );
+      
+      return {
+        crossValidationPath: path.join(outputsDir, 'cross-validation-results.json'),
+        conflictCount: crossValidationResult.arbitrationSummary.conflicts,
+      };
+    }, runId);
+  }
+
+  /**
+   * 执行报告生成步骤
+   */
+  private async executeReportGeneration(
+    workspace: WorkspaceStructure,
+    runId: string
+  ): Promise<StepResult> {
+    return this.executeStep('report_generation', async () => {
+      const outputsDir = path.join(workspace.root, 'outputs');
+      const requirements: Requirement[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
+      );
+      const testCases: TestCase[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
+      );
+      const crossValidationResults = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'cross-validation-results.json'), 'utf-8')
+      );
+      
+      const { reportPath } = this.reportGenerator.generateReport(
+        crossValidationResults.updatedAssertions || [],
+        testCases,
+        requirements,
+        { runId, outputDir: outputsDir }
+      );
+      
+      return { reportPath };
+    }, runId);
+  }
+
+  /**
+   * 执行质量门检查步骤
+   */
+  private async executeQualityGate(
+    workspace: WorkspaceStructure,
+    runId: string
+  ): Promise<StepResult> {
+    return this.executeStep('quality_gate', async () => {
+      const outputsDir = path.join(workspace.root, 'outputs');
+      const requirements: Requirement[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'requirements.json'), 'utf-8')
+      );
+      const testCases: TestCase[] = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'test-cases.json'), 'utf-8')
+      );
+      const crossValidationResults = JSON.parse(
+        await fs.readFile(path.join(outputsDir, 'cross-validation-results.json'), 'utf-8')
+      );
+      
+      const rc = calculateRC(requirements, testCases);
+      const apr = calculateAPR(crossValidationResults.updatedAssertions || []);
+      const gateStatus = evaluateGate(
+        requirements, testCases, crossValidationResults.updatedAssertions || []
+      );
+      
+      return { rc: rc.value, apr: apr.value, passed: gateStatus.passed, blocked: gateStatus.blocked };
+    }, runId);
   }
 
   private async executeStep(
