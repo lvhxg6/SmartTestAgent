@@ -216,13 +216,38 @@ export class TestPipeline {
         const promptPath = path.join(config.promptsDir, 'prd-parse.md');
         const promptTemplate = await fs.readFile(promptPath, 'utf-8');
         
+        // Read source context (route files and page files)
+        const sourceContextPath = path.join(workspace!.root, 'source-context');
+        let routeFilesContent = '';
+        let pageFilesContent = '';
+        try {
+          routeFilesContent = await fs.readFile(path.join(sourceContextPath, 'route-files.txt'), 'utf-8');
+        } catch { /* no route files */ }
+        try {
+          pageFilesContent = await fs.readFile(path.join(sourceContextPath, 'page-files.txt'), 'utf-8');
+        } catch { /* no page files */ }
+        
+        // Build complete prompt with all context
+        let fullPrompt = promptTemplate + '\n\n---\n\n## PRD 文档内容\n\n' + prdContent;
+        
+        if (routeFilesContent) {
+          fullPrompt += '\n\n---\n\n## 路由配置文件\n\n```\n' + routeFilesContent + '\n```';
+        }
+        
+        if (pageFilesContent) {
+          fullPrompt += '\n\n---\n\n## 页面源码\n\n```\n' + pageFilesContent + '\n```';
+        }
+        
+        // Add explicit instruction to focus on PRD parsing
+        fullPrompt += '\n\n---\n\n## 重要提示\n\n请直接根据上面提供的 PRD 文档、路由配置和页面源码进行分析，**不要**读取其他文件。所有需要的信息已经在上面提供了。请输出 requirements.json 和 test-cases.json 的内容。';
+        
         // Create log callback to emit CLI logs
         const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
           this.emit('cli_log', runId, { source: 'claude', type, message });
         };
         
         const result = await this.cliAdapter.invokeClaudeCode({
-          prompt: promptTemplate + '\n\n---\n\nPRD Content:\n' + prdContent,
+          prompt: fullPrompt,
           outputFormat: 'stream-json',
           onLog,
         });

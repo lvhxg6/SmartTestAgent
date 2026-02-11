@@ -1,0 +1,44 @@
+{
+  "case_id": "TC-002",
+  "requirement_id": "REQ-001",
+  "route": "/system-maintenance/auto-scan-config",
+  "title": "验证点击Tab切换加载对应扫描类型配置数据",
+  "precondition": "用户已登录且有系统维护权限，页面已加载完成",
+  "steps": [
+    { "step_id": "S1", "action": "navigate", "target": "/system-maintenance/auto-scan-config", "description": "导航到任务自动下发配置页面" },
+    { "step_id": "S2", "action": "click", "target": "getByRole('tab', { name: '弱口令检测' })", "description": "点击弱口令检测Tab" },
+    { "step_id": "S3", "action": "screenshot", "target": "page", "description": "截图记录弱口令检测Tab内容" },
+    { "step_id": "S4", "action": "click", "target": "getByRole('tab', { name: '系统漏洞' })", "description": "点击系统漏洞Tab" },
+    { "step_id": "S5", "action": "screenshot", "target": "page", "description": "截图记录系统漏洞Tab内容" },
+    { "step_id": "S6", "action": "click", "target": "getByRole('tab', { name: '外部漏洞' })", "description": "点击外部漏洞Tab" },
+    { "step_id": "S7", "action": "screenshot", "target": "page", "description": "截图记录外部漏洞Tab内容" }
+  ],
+  "assertions": [
+    { "assertion_id": "AST-001", "type": "element_visible", "target": "getByRole('tab', { name: '弱口令检测' })[aria-selected='true']", "expected": "visible", "description": "验证弱口令检测Tab切换后被选中高亮" },
+    { "assertion_id": "AST-002", "type": "element_visible", "target": "getByRole('tab', { name: '系统漏洞' })[aria-selected='true']", "expected": "visible", "description": "验证系统漏洞Tab切换后被选中高亮" },
+    { "assertion_id": "AST-003", "type": "element_visible", "target": "getByRole('tab', { name: '外部漏洞' })[aria-selected='true']", "expected": "visible", "description": "验证外部漏洞Tab切换后被选中高亮" }
+  ],
+  "data_preparation": [],
+  "data_cleanup": [],
+  "tags": ["P0", "tab-switch"]
+},
+{
+  "case_id": "TC-003",
+  "requirement_id": "REQ-001",
+  "route": "/system-maintenance/auto-scan-config",
+  "title": "验证Tab切换时有未保存修改弹出确认提示",
+  "precondition": "用户已登录，当前在基线检测Tab，已修改表单但未保存",
+  "steps": [
+    { "step_id": "S1", "action": "navigate", "target": "/system-maintenance/auto-scan-config", "description": "导航到任务自动下发配置页面" },
+    { "step_id": "S2", "action": "click", "target": ".ant-switch", "description": "修改自动下发开关状态触发表单变更" },
+    { "step_id": "S3", "action": "click", "target": "getByRole('tab', { name: '弱口令检测' })", "description": "点击切换到弱口令检测Tab" },
+    { "step_id": "S4", "action": "screenshot", "target": "page", "description": "截图记录确认弹框" }
+  ],
+  "assertions": [
+    { "assertion_id": "AST-001", "type": "element_visible", "target": ".ant-modal", "expected": "visible", "description": "验证弹出未保存修改确认弹框" },
+    { "assertion_id": "AST-002", "type": "text_content", "target": ".ant-modal-body", "expected": "未保存", "description": "验证弹框提示包含未保存相关文字" }
+  ],
+  "data_preparation": [],
+  "data_cleanup": [],
+  "tags": ["P0", "tab-switch", "unsaved-warning"]
+},
