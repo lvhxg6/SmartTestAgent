@@ -223,12 +223,12 @@ export class TestPipeline {
         
         const result = await this.cliAdapter.invokeClaudeCode({
           prompt: promptTemplate + '\n\n---\n\nPRD Content:\n' + prdContent,
-          outputFormat: 'json',
+          outputFormat: 'stream-json',
           onLog,
         });
         
-        // Save raw output for debugging
-        await fs.writeFile(path.join(workspace!.root, 'prd-parse-raw-output.txt'), result.output || '');
+        // Save raw stream-json output for debugging (full Claude process)
+        await fs.writeFile(path.join(workspace!.root, 'prd-parse-raw-output.json'), result.rawOutput || result.output || '');
         
         // Check if Claude Code invocation was successful
         if (!result.success) {
@@ -283,13 +283,13 @@ export class TestPipeline {
         
         const result = await this.cliAdapter.invokeClaudeCode({
           prompt: execPrompt + '\n\n---\n\nTest Cases:\n' + JSON.stringify(testCases, null, 2),
-          outputFormat: 'json',
+          outputFormat: 'stream-json',
           allowedTools: ['Bash', 'Read', 'Write'],
           onLog,
         });
         
-        // Save raw output for debugging
-        await fs.writeFile(path.join(workspace!.root, 'test-execution-raw-output.txt'), result.output || '');
+        // Save raw stream-json output for debugging (full Claude process)
+        await fs.writeFile(path.join(workspace!.root, 'test-execution-raw-output.json'), result.rawOutput || result.output || '');
         
         // Check if Claude Code invocation was successful
         if (!result.success) {
@@ -346,7 +346,7 @@ export class TestPipeline {
         });
         
         // Save raw output for debugging
-        await fs.writeFile(path.join(workspace!.root, 'codex-review-raw-output.txt'), result.output || '');
+        await fs.writeFile(path.join(workspace!.root, 'codex-review-raw-output.json'), result.output || '');
         
         // Check if Codex invocation was successful
         if (!result.success) {

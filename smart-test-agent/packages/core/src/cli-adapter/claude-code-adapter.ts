@@ -33,8 +33,10 @@ export interface ClaudeCodeParams {
 export interface ClaudeCodeResult {
   /** Whether the invocation succeeded */
   success: boolean;
-  /** Output from Claude Code */
+  /** Output from Claude Code (extracted result for processing) */
   output: string;
+  /** Raw output from Claude Code (full stream-json for debugging) */
+  rawOutput?: string;
   /** Parsed JSON output (if applicable) */
   parsedOutput?: unknown;
   /** Error message if failed */
@@ -101,26 +103,51 @@ export class ClaudeCodeAdapter {
         for (const line of lines) {
           try {
             const event = JSON.parse(line);
-            // Extract meaningful info from Claude Code events
-            if (event.type === 'assistant' && event.message?.content) {
-              const content = event.message.content;
+            // Extract meaningful info from Claude Code stream-json events
+            // See: https://docs.anthropic.com/en/docs/build-with-claude/computer-use#stream-json-format
+            
+            if (event.type === 'system') {
+              // System initialization message
+              onLog?.('info', `[System] ${event.subtype || 'initialized'}`);
+            } else if (event.type === 'assistant') {
+              // Assistant message with content
+              const content = event.message?.content;
               if (Array.isArray(content)) {
                 for (const item of content) {
                   if (item.type === 'text' && item.text) {
-                    onLog?.('stdout', `[Claude] ${item.text.substring(0, 200)}${item.text.length > 200 ? '...' : ''}`);
+                    // Truncate long text for display
+                    const text = item.text.trim();
+                    if (text.length > 0) {
+                      onLog?.('stdout', text.length > 300 ? text.substring(0, 300) + '...' : text);
+                    }
                   } else if (item.type === 'tool_use') {
-                    onLog?.('stdout', `[Claude] Using tool: ${item.name}`);
+                    // Tool invocation
+                    const toolInput = item.input ? JSON.stringify(item.input).substring(0, 100) : '';
+                    onLog?.('stdout', `🔧 Tool: ${item.name}${toolInput ? ` (${toolInput}...)` : ''}`);
+                  }
+                }
+              }
+            } else if (event.type === 'user') {
+              // Tool result from user
+              const content = event.message?.content;
+              if (Array.isArray(content)) {
+                for (const item of content) {
+                  if (item.type === 'tool_result') {
+                    const isError = item.is_error;
+                    const resultPreview = typeof item.content === 'string' 
+                      ? item.content.substring(0, 100) 
+                      : JSON.stringify(item.content).substring(0, 100);
+                    onLog?.(isError ? 'stderr' : 'stdout', `${isError ? '❌' : '✅'} Tool result: ${resultPreview}...`);
                   }
                 }
               }
             } else if (event.type === 'result') {
-              onLog?.('stdout', `[Claude] Result: ${event.subtype || 'completed'}`);
+              // Final result
+              const status = event.subtype === 'success' ? '✅' : event.subtype === 'error' ? '❌' : '📋';
+              onLog?.('info', `${status} Result: ${event.subtype || 'completed'} (${event.duration_ms || 0}ms, cost: $${event.total_cost_usd?.toFixed(4) || '0'})`);
             }
           } catch {
-            // Not JSON line, log raw if meaningful
-            if (line.length > 0 && line.length < 500) {
-              onLog?.('stdout', line);
-            }
+            // Not JSON line, might be raw output - skip unless meaningful
           }
         }
       });
@@ -148,25 +175,42 @@ export class ClaudeCodeAdapter {
           output.includes(pattern) || errorOutput.includes(pattern)
         );
 
-        // Check for is_error flag in JSON output
+        // Parse stream-json output to extract final result
+        // Keep full output for debugging, but extract result for processing
+        let finalResult: any = null;
         let hasJsonError = false;
-        try {
-          const parsed = JSON.parse(output);
-          if (parsed && typeof parsed === 'object' && parsed.is_error === true) {
-            hasJsonError = true;
+        const lines = output.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'result') {
+              finalResult = event;
+              if (event.is_error === true) {
+                hasJsonError = true;
+              }
+            }
+          } catch {
+            // Not JSON line, skip
           }
-        } catch {
-          // Not JSON, ignore
         }
 
         // Check for timeout (SIGTERM = 143)
         const isTimeout = exitCode === 143;
 
         if (exitCode === 0 && !hasAuthError && !hasJsonError) {
-          const parsedOutput = this.tryParseJson(output);
+          // Extract the actual result content from stream-json for processing
+          // But keep rawOutput with full stream for debugging
+          let resultOutput = output;
+          if (finalResult && finalResult.result) {
+            resultOutput = finalResult.result;
+          }
+          
+          const parsedOutput = this.tryParseJson(resultOutput);
           resolve({
             success: true,
-            output,
+            output: resultOutput,  // The extracted result for processing
+            rawOutput: output,     // Full stream-json output for debugging
             parsedOutput,
             exitCode,
             durationMs,
