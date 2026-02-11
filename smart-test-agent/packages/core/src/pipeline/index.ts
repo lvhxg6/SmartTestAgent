@@ -32,6 +32,8 @@ export interface PipelineConfig {
   promptsDir: string;
   /** Optional existing run ID - if provided, skip creating a new run */
   existingRunId?: string;
+  /** Skip internal state transitions (when managed externally) */
+  skipStateTransitions?: boolean;
 }
 
 export interface StepResult {
@@ -73,6 +75,7 @@ export class TestPipeline {
   private crossValidator: CrossValidator;
   private reportGenerator: ReportGenerator;
   private eventHandlers: PipelineEventHandler[] = [];
+  private skipStateTransitions: boolean = false;
 
   constructor() {
     this.orchestrator = new Orchestrator();
@@ -100,6 +103,9 @@ export class TestPipeline {
     const steps: StepResult[] = [];
     let runId = config.existingRunId || '';
     let workspace: WorkspaceStructure | null = null;
+    
+    // Set skip state transitions flag
+    this.skipStateTransitions = config.skipStateTransitions ?? false;
 
     try {
       // Step 0: Initialize
@@ -363,6 +369,10 @@ export class TestPipeline {
   }
 
   private async transitionState(runId: string, event: StateEvent, options?: TransitionOptions): Promise<void> {
+    // Skip if managed externally
+    if (this.skipStateTransitions) {
+      return;
+    }
     await this.orchestrator.transition(runId, event, options);
     const state = await this.orchestrator.getState(runId);
     this.emit('state_changed', runId, { state });

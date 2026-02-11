@@ -104,6 +104,7 @@ export class PipelineRunner {
       workspaceRoot: this.config.workspaceRoot,
       promptsDir: this.config.promptsDir,
       existingRunId: runId, // Use the existing run ID from database
+      skipStateTransitions: true, // State is managed by PipelineRunner
     };
 
     // Create and configure pipeline
