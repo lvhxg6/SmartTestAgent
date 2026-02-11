@@ -566,6 +566,130 @@ export class PipelineRunner {
     const validator = new PrerequisiteValidator(this.config.workspaceRoot);
     return validator.getResumableSteps(runId);
   }
+
+  /**
+   * 审批通过后继续执行 Pipeline
+   * @param runId 运行 ID
+   * @throws Error 如果验证失败
+   */
+  async continueAfterApproval(runId: string): Promise<void> {
+    console.log(`[PipelineRunner] Continuing pipeline after approval for run: ${runId}`);
+
+    // 1. 验证 TestRun 存在
+    const testRun = await prisma.testRun.findUnique({
+      where: { id: runId },
+    });
+
+    if (!testRun) {
+      throw new Error(`TestRun not found: ${runId}`);
+    }
+
+    // 2. 验证 TestRun 状态为 awaiting_approval
+    if (testRun.state !== 'awaiting_approval') {
+      throw new Error(`TestRun is not awaiting approval (state: ${testRun.state})`);
+    }
+
+    // 3. 检查是否已经在运行
+    if (this.runningPipelines.has(runId)) {
+      throw new Error(`Pipeline is already running for run: ${runId}`);
+    }
+
+    // 4. 获取 target profile
+    const targetProfile = await prisma.targetProfile.findUnique({
+      where: { projectId: testRun.projectId },
+    });
+
+    if (!targetProfile) {
+      throw new Error(`Target profile not found for project: ${testRun.projectId}`);
+    }
+
+    // 5. 获取项目信息
+    const project = await prisma.project.findUnique({
+      where: { id: testRun.projectId },
+    });
+
+    if (!project) {
+      throw new Error(`Project not found: ${testRun.projectId}`);
+    }
+
+    // 6. 转换 target profile
+    const profileConfig = this.convertTargetProfile(targetProfile);
+
+    // 7. 解析 PRD 路径
+    const prdPath = await this.resolvePrdPath(testRun.prdPath, testRun.projectId);
+
+    // 8. 创建 Pipeline 配置，从 test_execution 步骤开始
+    const pipelineConfig: PipelineConfig = {
+      projectId: testRun.projectId,
+      prdPath,
+      routes: fromJsonString<string[]>(testRun.testedRoutes),
+      targetProfile: profileConfig,
+      workspaceRoot: this.config.workspaceRoot,
+      promptsDir: this.config.promptsDir,
+      existingRunId: runId,
+      skipStateTransitions: true,
+      startFromStep: 'test_execution',
+      isResume: true,
+      skipApprovalWait: true,
+    };
+
+    // 9. 更新 TestRun 状态为 executing
+    await this.updateRunState(runId, 'executing', null, undefined);
+
+    // 10. 创建并配置 Pipeline
+    const pipeline = new TestPipeline();
+    this.runningPipelines.set(runId, pipeline);
+
+    // 11. 设置事件处理器（复用 resumePipeline 的事件处理逻辑）
+    pipeline.onEvent(async (event) => {
+      console.log(`[PipelineRunner] Continue Event: ${event.type} for run ${event.runId}`, event.data);
+
+      // Emit to WebSocket
+      if (this.io) {
+        this.io.to(`run:${runId}`).emit('pipeline:event', event);
+      }
+
+      // Update database state based on step
+      if (event.type === 'step_started') {
+        const step = event.data.step as string;
+        const stepState = STEP_TO_STATE[step];
+        if (stepState) {
+          await this.updateRunState(runId, stepState);
+        }
+      }
+
+      if (event.type === 'step_failed') {
+        const errorMsg = event.data.error as string;
+        console.error(`[PipelineRunner] Step failed: ${event.data.step}`, errorMsg);
+      }
+
+      if (event.type === 'confirmation_required') {
+        await this.updateRunState(runId, 'report_ready');
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('confirmation:required', {
+            runId,
+            reportPath: event.data.reportPath,
+          });
+        }
+      }
+
+      // Forward CLI log events to WebSocket
+      if (event.type === 'cli_log') {
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('cli_log', {
+            runId,
+            source: event.data.source,
+            type: event.data.type,
+            message: event.data.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    // 12. 在后台执行 Pipeline
+    this.executePipelineAsync(runId, pipeline, pipelineConfig);
+  }
 }
 
 // Singleton instance

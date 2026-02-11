@@ -407,6 +407,17 @@ export const testRunRouter = router({
           currentState: newState,
           timestamp: now.toISOString(),
         });
+
+        // If approved, continue pipeline execution
+        if (input.approved) {
+          const pipelineRunner = getPipelineRunner();
+          pipelineRunner.setSocketIO(ctx.io);
+          
+          // Continue pipeline execution in background (non-blocking)
+          pipelineRunner.continueAfterApproval(input.runId).catch((error) => {
+            console.error(`[testRun.submitApproval] Failed to continue pipeline for run ${input.runId}:`, error);
+          });
+        }
       }
 
       return {
@@ -586,6 +597,166 @@ export const testRunRouter = router({
         failed,
         inProgress,
         successRate: total > 0 ? completed / total : 0,
+      };
+    }),
+
+  /**
+   * 获取测试用例列表
+   * @see Requirements 2.1, 2.2, 2.3, 8.1
+   */
+  getTestCases: publicProcedure
+    .input(z.object({
+      runId: z.string().uuid(),
+      requirementId: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      // 验证 TestRun 存在
+      const run = await prisma.testRun.findUnique({
+        where: { id: input.runId },
+      });
+
+      if (!run) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Test run with id ${input.runId} not found`,
+        });
+      }
+
+      // 获取工作目录路径
+      const workspaceRoot = process.env.WORKSPACE_DIR || '.ai-test-workspace';
+      const outputsDir = `${workspaceRoot}/${input.runId}/outputs`;
+      const testCasesPath = `${outputsDir}/test-cases.json`;
+      const testCasesDir = `${outputsDir}/test-cases`;
+
+      const fs = await import('fs/promises');
+      const path = await import('path');
+
+      let testCases: any[] = [];
+
+      // 尝试读取 test-cases.json
+      try {
+        const content = await fs.readFile(testCasesPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        testCases = Array.isArray(parsed) ? parsed : (parsed.test_cases || parsed.testCases || []);
+      } catch {
+        // 如果 test-cases.json 不存在，尝试读取 test-cases/ 目录
+        try {
+          const files = await fs.readdir(testCasesDir);
+          const reqFiles = files.filter((f: string) => f.startsWith('REQ-') && f.endsWith('.json'));
+          
+          for (const reqFile of reqFiles) {
+            try {
+              const filePath = path.join(testCasesDir, reqFile);
+              const content = await fs.readFile(filePath, 'utf-8');
+              const parsed = JSON.parse(content);
+              
+              if (Array.isArray(parsed)) {
+                testCases.push(...parsed);
+              } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
+                testCases.push(...parsed.test_cases);
+              } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
+                testCases.push(...parsed.testCases);
+              }
+            } catch (e) {
+              console.warn(`[getTestCases] 无法解析测试用例文件 ${reqFile}:`, e);
+            }
+          }
+        } catch {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Test cases file not found',
+          });
+        }
+      }
+
+      // 按需求 ID 筛选
+      if (input.requirementId) {
+        testCases = testCases.filter((tc: any) => tc.requirement_id === input.requirementId);
+      }
+
+      // 按需求分组
+      const byRequirement: Record<string, any[]> = {};
+      for (const tc of testCases) {
+        const reqId = tc.requirement_id || 'unknown';
+        if (!byRequirement[reqId]) {
+          byRequirement[reqId] = [];
+        }
+        byRequirement[reqId].push(tc);
+      }
+
+      return {
+        testCases,
+        total: testCases.length,
+        byRequirement,
+      };
+    }),
+
+  /**
+   * 获取需求列表
+   * @see Requirements 3.1, 3.2, 3.4, 8.2
+   */
+  getRequirements: publicProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      // 验证 TestRun 存在
+      const run = await prisma.testRun.findUnique({
+        where: { id: input.runId },
+      });
+
+      if (!run) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Test run with id ${input.runId} not found`,
+        });
+      }
+
+      // 获取工作目录路径
+      const workspaceRoot = process.env.WORKSPACE_DIR || '.ai-test-workspace';
+      const requirementsPath = `${workspaceRoot}/${input.runId}/outputs/requirements.json`;
+
+      const fs = await import('fs/promises');
+
+      let requirements: any[] = [];
+
+      try {
+        const content = await fs.readFile(requirementsPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        requirements = parsed.requirements || (Array.isArray(parsed) ? parsed : []);
+      } catch {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Requirements file not found',
+        });
+      }
+
+      // 按优先级分组
+      const byPriority: { P0: any[]; P1: any[]; P2: any[] } = {
+        P0: [],
+        P1: [],
+        P2: [],
+      };
+
+      for (const req of requirements) {
+        const priority = req.priority || 'P2';
+        if (priority === 'P0') {
+          byPriority.P0.push(req);
+        } else if (priority === 'P1') {
+          byPriority.P1.push(req);
+        } else {
+          byPriority.P2.push(req);
+        }
+      }
+
+      // 按优先级排序
+      requirements.sort((a: any, b: any) => {
+        const priorityOrder: Record<string, number> = { P0: 0, P1: 1, P2: 2 };
+        return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+      });
+
+      return {
+        requirements,
+        total: requirements.length,
+        byPriority,
       };
     }),
 

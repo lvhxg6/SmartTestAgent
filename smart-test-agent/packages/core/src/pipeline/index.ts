@@ -73,6 +73,8 @@ export interface PipelineConfig {
   startFromStep?: ResumableStep;
   /** 标记是否为恢复执行 */
   isResume?: boolean;
+  /** 跳过审批等待，直接继续执行（审批通过后继续执行时使用） */
+  skipApprovalWait?: boolean;
 }
 
 export interface StepResult {
@@ -85,11 +87,17 @@ export interface StepResult {
 
 export interface PipelineResult {
   runId: string;
-  status: 'completed' | 'failed' | 'cancelled';
+  status: 'completed' | 'failed' | 'cancelled' | 'awaiting_approval';
   steps: StepResult[];
   reportPath?: string;
   qualityMetrics?: { rc: number; apr: number; fr?: number };
   error?: string;
+  /** 标记是否正在等待审批 */
+  awaitingApproval?: boolean;
+  /** 等待审批时的测试用例路径 */
+  testCasesPath?: string;
+  /** 等待审批时的需求路径 */
+  requirementsPath?: string;
 }
 
 export type PipelineEventType =
@@ -323,7 +331,22 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
 
       await this.transitionState(runId, 'GENERATION_COMPLETE');
       if (!this.shouldSkipStep('prd_parsing', config)) {
-        this.emit('approval_required', runId, { testCasesPath: parseResult.artifacts?.testCasesPath });
+        this.emit('approval_required', runId, { 
+          testCasesPath: parseResult.artifacts?.testCasesPath,
+          requirementsPath: parseResult.artifacts?.requirementsPath,
+        });
+        
+        // 如果不是恢复执行且不跳过审批等待，则暂停执行等待审批
+        if (!config.isResume && !config.skipApprovalWait) {
+          return {
+            runId,
+            status: 'awaiting_approval',
+            steps,
+            awaitingApproval: true,
+            testCasesPath: parseResult.artifacts?.testCasesPath as string,
+            requirementsPath: parseResult.artifacts?.requirementsPath as string,
+          };
+        }
       }
 
       // Step 2: Test execution

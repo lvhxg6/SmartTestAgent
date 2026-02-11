@@ -21,6 +21,7 @@ import {
   Spin,
   Descriptions,
   Alert,
+  Tabs,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -28,11 +29,17 @@ import {
   LoadingOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
+  FileTextOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { trpc } from '../lib/trpc';
 import { getSocket, joinTestRun, leaveTestRun, SocketEvents } from '../lib/socket';
 import { ResumeRunDialog } from '../components/ResumeRunDialog';
+import { RequirementList } from '../components/RequirementList';
+import { TestCaseList } from '../components/TestCaseList';
+import { ApprovalActions } from '../components/ApprovalActions';
+import { ScriptPreviewModal } from '../components/ScriptPreviewModal';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -61,10 +68,12 @@ export const TestRunDetail: React.FC = () => {
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
+  const [scriptPreviewOpen, setScriptPreviewOpen] = useState(false);
   const [comments, setComments] = useState('');
   const [progress, setProgress] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<any[]>([]);
   const [latestScreenshot, setLatestScreenshot] = useState<string | null>(null);
+  const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
   const [cliLogs, setCliLogs] = useState<Array<{
     source: 'claude' | 'codex';
     type: 'stdout' | 'stderr' | 'info';
@@ -76,6 +85,18 @@ export const TestRunDetail: React.FC = () => {
   const { data: run, isLoading, refetch } = trpc.testRun.getById.useQuery(
     { id: runId! },
     { enabled: !!runId, refetchInterval: 5000 }
+  );
+
+  // Fetch requirements (only when awaiting_approval)
+  const { data: requirements, isLoading: requirementsLoading } = trpc.testRun.getRequirements.useQuery(
+    { runId: runId! },
+    { enabled: !!runId && run?.state === 'awaiting_approval' }
+  );
+
+  // Fetch test cases (only when awaiting_approval)
+  const { data: testCases, isLoading: testCasesLoading } = trpc.testRun.getTestCases.useQuery(
+    { runId: runId! },
+    { enabled: !!runId && run?.state === 'awaiting_approval' }
   );
 
   // Approval mutation
@@ -267,18 +288,70 @@ export const TestRunDetail: React.FC = () => {
 
       {/* Approval section */}
       {run.state === 'awaiting_approval' && (
-        <Card title="测试用例审批" style={{ marginBottom: 16 }}>
+        <Card 
+          title="测试用例审批" 
+          style={{ marginBottom: 16 }}
+          extra={
+            <Space>
+              <Tag color="processing">等待审批</Tag>
+              <Text type="secondary">
+                {requirements?.total || 0} 个需求，{testCases?.total || 0} 个用例
+              </Text>
+            </Space>
+          }
+        >
           <Alert
             type="info"
             message="请审核生成的测试用例"
-            description="确认测试用例符合预期后，点击批准开始执行测试"
+            description="查看下方的需求和测试用例列表，确认符合预期后点击「批准执行」开始测试。如有问题可点击「拒绝」并提供反馈。"
             style={{ marginBottom: 16 }}
           />
-          <Space>
-            <Button type="primary" onClick={() => setApprovalModalOpen(true)}>
-              审批测试用例
-            </Button>
-          </Space>
+          
+          <Tabs
+            defaultActiveKey="requirements"
+            items={[
+              {
+                key: 'requirements',
+                label: (
+                  <span>
+                    <FileTextOutlined />
+                    需求列表 ({requirements?.total || 0})
+                  </span>
+                ),
+                children: (
+                  <RequirementList
+                    requirements={requirements}
+                    selectedRequirement={selectedRequirement}
+                    onSelect={setSelectedRequirement}
+                    loading={requirementsLoading}
+                  />
+                ),
+              },
+              {
+                key: 'testcases',
+                label: (
+                  <span>
+                    <ExperimentOutlined />
+                    测试用例 ({testCases?.total || 0})
+                  </span>
+                ),
+                children: (
+                  <TestCaseList
+                    testCases={testCases}
+                    selectedRequirement={selectedRequirement}
+                    loading={testCasesLoading}
+                  />
+                ),
+              },
+            ]}
+          />
+          
+          <ApprovalActions
+            runId={runId!}
+            onPreviewScript={() => setScriptPreviewOpen(true)}
+            onDownloadScript={() => message.info('下载功能开发中')}
+            onApprovalComplete={() => refetch()}
+          />
         </Card>
       )}
 
@@ -445,6 +518,13 @@ export const TestRunDetail: React.FC = () => {
         runId={runId!}
         onClose={() => setResumeDialogOpen(false)}
         onSuccess={() => refetch()}
+      />
+
+      {/* Script Preview Modal */}
+      <ScriptPreviewModal
+        open={scriptPreviewOpen}
+        runId={runId!}
+        onClose={() => setScriptPreviewOpen(false)}
       />
     </div>
   );
