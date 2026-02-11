@@ -252,6 +252,7 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
 │   ├── routes/             # 路由配置文件（仅供参考组件结构，不要从中提取路由路径）
 │   └── pages/              # 页面源码文件（可能是 .zip，需要解压）
 ├── outputs/                # 输出目录（已创建）
+│   └── test-cases/         # 测试用例子目录（需要创建）
 ├── evidence/               # 证据目录
 └── logs/                   # 日志目录
 \`\`\`
@@ -265,17 +266,57 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
    - 然后读取解压后的源码文件
 4. 根据 PRD 和源码分析，生成 requirements 和 test-cases
 5. **重要**：所有测试用例的 \`route\` 字段必须使用上面指定的测试路由
-6. 将结果保存到 \`./outputs/requirements.json\` 和 \`./outputs/test-cases.json\`
+6. 将结果保存到输出目录
 
 ## 输出要求
 
-请将结果直接写入文件：
-- \`./outputs/requirements.json\` - 需求列表
-- \`./outputs/test-cases.json\` - 测试用例列表
+**1. 需求文件**：\`./outputs/requirements.json\`
+\`\`\`json
+{
+  "version": "1.0",
+  "requirements": [
+    {"requirement_id": "REQ-001", "title": "...", ...},
+    {"requirement_id": "REQ-002", "title": "...", ...}
+  ]
+}
+\`\`\`
+
+**2. 测试用例文件**：按需求分文件存储，避免单文件过大
+
+首先创建目录：
+\`\`\`bash
+mkdir -p ./outputs/test-cases
+\`\`\`
+
+然后为每个需求创建单独的测试用例文件：
+- \`./outputs/test-cases/REQ-001.json\` - REQ-001 的测试用例
+- \`./outputs/test-cases/REQ-002.json\` - REQ-002 的测试用例
+- ...
+
+每个文件格式：
+\`\`\`json
+{
+  "requirement_id": "REQ-001",
+  "test_cases": [
+    {"case_id": "TC-001", ...},
+    {"case_id": "TC-002", ...}
+  ]
+}
+\`\`\`
+
+**3. 测试用例索引**：\`./outputs/test-cases-index.json\`
+\`\`\`json
+{
+  "version": "1.0",
+  "total_requirements": 10,
+  "total_test_cases": 25,
+  "files": ["REQ-001.json", "REQ-002.json", ...]
+}
+\`\`\`
 
 写入完成后，输出确认信息：
 \`\`\`json
-{"status": "completed", "files": ["requirements.json", "test-cases.json"]}
+{"status": "completed", "requirements_count": 10, "test_cases_count": 25}
 \`\`\`
 
 **注意：**
@@ -310,9 +351,12 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
         const outputsDir = path.join(workspace!.root, 'outputs');
         const requirementsPath = path.join(outputsDir, 'requirements.json');
         const testCasesPath = path.join(outputsDir, 'test-cases.json');
+        const testCasesDir = path.join(outputsDir, 'test-cases');
+        const testCasesIndexPath = path.join(outputsDir, 'test-cases-index.json');
         
         let requirementsExist = false;
         let testCasesExist = false;
+        let testCasesDirExist = false;
         
         try {
           await fs.access(requirementsPath);
@@ -323,6 +367,11 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
           await fs.access(testCasesPath);
           testCasesExist = true;
         } catch { /* file doesn't exist */ }
+        
+        try {
+          const stat = await fs.stat(testCasesDir);
+          testCasesDirExist = stat.isDirectory();
+        } catch { /* directory doesn't exist */ }
         
         // If Claude wrote files directly, use them
         if (requirementsExist && testCasesExist) {
@@ -339,8 +388,59 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
           }
         }
         
+        // Check for multi-file test cases format (new format)
+        if (requirementsExist && testCasesDirExist) {
+          console.log('[Pipeline] 检测到多文件测试用例格式，正在合并...');
+          
+          // Read all REQ-*.json files from test-cases directory
+          const files = await fs.readdir(testCasesDir);
+          const reqFiles = files.filter(f => f.startsWith('REQ-') && f.endsWith('.json'));
+          
+          if (reqFiles.length > 0) {
+            const allTestCases: unknown[] = [];
+            
+            for (const reqFile of reqFiles) {
+              try {
+                const filePath = path.join(testCasesDir, reqFile);
+                const content = await fs.readFile(filePath, 'utf-8');
+                const parsed = JSON.parse(content);
+                
+                // Handle both formats: { test_cases: [...] } or [...]
+                if (Array.isArray(parsed)) {
+                  allTestCases.push(...parsed);
+                } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
+                  allTestCases.push(...parsed.test_cases);
+                } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
+                  allTestCases.push(...parsed.testCases);
+                }
+              } catch (e) {
+                console.warn(`[Pipeline] 无法解析测试用例文件 ${reqFile}:`, e);
+              }
+            }
+            
+            if (allTestCases.length > 0) {
+              // Write merged test cases to single file for downstream processing
+              await fs.writeFile(testCasesPath, JSON.stringify(allTestCases, null, 2));
+              console.log(`[Pipeline] 已合并 ${reqFiles.length} 个文件，共 ${allTestCases.length} 个测试用例`);
+              
+              return {
+                requirementsPath,
+                testCasesPath,
+              };
+            }
+          }
+          
+          // If we have index file, try to use it
+          try {
+            await fs.access(testCasesIndexPath);
+            const indexContent = await fs.readFile(testCasesIndexPath, 'utf-8');
+            const index = JSON.parse(indexContent);
+            console.log(`[Pipeline] 测试用例索引: ${index.total_test_cases || 0} 个测试用例`);
+          } catch { /* index doesn't exist */ }
+        }
+        
         // If only requirements exist, try to parse test cases from output
-        if (requirementsExist && !testCasesExist) {
+        if (requirementsExist && !testCasesExist && !testCasesDirExist) {
           // Try to extract test cases from output
           let testCases: unknown[] = [];
           
@@ -371,7 +471,7 @@ ${testRoutes.map(r => `- \`${r}\``).join('\n')}
               testCasesPath,
             };
           } else {
-            throw new Error('Claude 未能生成 test-cases.json 文件');
+            throw new Error('Claude 未能生成 test-cases.json 文件或 test-cases/ 目录');
           }
         }
         
