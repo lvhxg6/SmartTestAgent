@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc.js';
 import { TRPCError } from '@trpc/server';
 import { prisma, toJsonString, fromJsonString, fromJsonStringNullable } from '@smart-test-agent/db';
+import { getPipelineRunner } from '../../services/pipeline-runner.js';
 
 /**
  * Test run state enum
@@ -336,6 +337,15 @@ export const testRunRouter = router({
           projectId: input.projectId,
           state: 'created',
           timestamp: now.toISOString(),
+        });
+
+        // Initialize pipeline runner with Socket.IO
+        const pipelineRunner = getPipelineRunner();
+        pipelineRunner.setSocketIO(ctx.io);
+
+        // Start pipeline execution in background (non-blocking)
+        pipelineRunner.startPipeline(runId).catch((error) => {
+          console.error(`[testRun.create] Failed to start pipeline for run ${runId}:`, error);
         });
       }
 
