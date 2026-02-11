@@ -29,6 +29,9 @@ out/
 coverage/
 .nyc_output/
 
+# AI Test Workspace (runtime generated)
+apps/server/.ai-test-workspace/
+
 # Logs
 logs/
 *.log
