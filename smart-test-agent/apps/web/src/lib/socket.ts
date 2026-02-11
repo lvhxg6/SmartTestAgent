@@ -66,6 +66,7 @@ export const SocketEvents = {
   STEP_COMPLETED: 'step_completed',
   STEP_SCREENSHOT: 'step_screenshot',
   PROGRESS_UPDATE: 'progress_update',
+  CLI_LOG: 'cli_log',
   ERROR: 'error',
   JOINED_RUN: 'joined-run',
 } as const;

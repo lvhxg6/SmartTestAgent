@@ -62,6 +62,12 @@ export const TestRunDetail: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<any[]>([]);
   const [latestScreenshot, setLatestScreenshot] = useState<string | null>(null);
+  const [cliLogs, setCliLogs] = useState<Array<{
+    source: 'claude' | 'codex';
+    type: 'stdout' | 'stderr' | 'info';
+    message: string;
+    timestamp: string;
+  }>>([]);
 
   // Fetch test run
   const { data: run, isLoading, refetch } = trpc.testRun.getById.useQuery(
@@ -132,12 +138,25 @@ export const TestRunDetail: React.FC = () => {
       }
     });
 
+    // Listen for CLI logs
+    socket.on(SocketEvents.CLI_LOG, (data: any) => {
+      if (data.runId === runId) {
+        setCliLogs(prev => [...prev.slice(-99), {
+          source: data.source,
+          type: data.type,
+          message: data.message,
+          timestamp: data.timestamp,
+        }]);
+      }
+    });
+
     return () => {
       leaveTestRun(runId);
       socket.off(SocketEvents.STATE_TRANSITION);
       socket.off(SocketEvents.STEP_COMPLETED);
       socket.off(SocketEvents.STEP_SCREENSHOT);
       socket.off(SocketEvents.PROGRESS_UPDATE);
+      socket.off(SocketEvents.CLI_LOG);
     };
   }, [runId, refetch]);
 
@@ -288,6 +307,53 @@ export const TestRunDetail: React.FC = () => {
       {latestScreenshot && (
         <Card title="最新截图" style={{ marginBottom: 16 }}>
           <Image src={latestScreenshot} style={{ maxWidth: '100%' }} />
+        </Card>
+      )}
+
+      {/* CLI Logs */}
+      {['parsing', 'generating', 'executing', 'codex_reviewing'].includes(run.state) && (
+        <Card 
+          title="执行日志" 
+          style={{ marginBottom: 16 }}
+          extra={<Text type="secondary">{cliLogs.length} 条日志</Text>}
+        >
+          <div 
+            style={{ 
+              maxHeight: 300, 
+              overflow: 'auto', 
+              backgroundColor: '#1e1e1e', 
+              padding: 12, 
+              borderRadius: 4,
+              fontFamily: 'Monaco, Menlo, monospace',
+              fontSize: 12,
+            }}
+          >
+            {cliLogs.length === 0 ? (
+              <Text style={{ color: '#888' }}>等待日志输出...</Text>
+            ) : (
+              cliLogs.map((log, index) => (
+                <div key={index} style={{ marginBottom: 4 }}>
+                  <Text style={{ 
+                    color: log.type === 'stderr' ? '#ff6b6b' : 
+                           log.type === 'info' ? '#69db7c' : '#ced4da',
+                  }}>
+                    <span style={{ color: '#868e96' }}>
+                      [{new Date(log.timestamp).toLocaleTimeString()}]
+                    </span>
+                    {' '}
+                    <Tag 
+                      color={log.source === 'claude' ? 'blue' : 'purple'} 
+                      style={{ fontSize: 10 }}
+                    >
+                      {log.source}
+                    </Tag>
+                    {' '}
+                    {log.message}
+                  </Text>
+                </div>
+              ))
+            )}
+          </div>
         </Card>
       )}
 
