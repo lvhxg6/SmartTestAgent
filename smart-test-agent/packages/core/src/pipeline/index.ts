@@ -184,6 +184,21 @@ export class TestPipeline {
         );
         await saveManifest(workspace.manifest, manifest);
         
+        // Write target profile for test execution
+        // Only include necessary fields for security (no sensitive data in logs)
+        const targetProfileForExecution = {
+          baseUrl: config.targetProfile.baseUrl,
+          login: config.targetProfile.login,
+          browser: config.targetProfile.browser,
+          allowedRoutes: config.targetProfile.allowedRoutes,
+          uiFramework: config.targetProfile.uiFramework,
+          antdQuirks: config.targetProfile.antdQuirks,
+        };
+        await fs.writeFile(
+          path.join(inputsDir, 'target-profile.json'),
+          JSON.stringify(targetProfileForExecution, null, 2)
+        );
+        
         // Create README for the workspace
         const readme = `# 测试运行工作目录
 
@@ -524,14 +539,37 @@ mkdir -p ./outputs/test-cases
         const execPromptPath = path.join(config.promptsDir, 'ui-test-execute.md');
         const execPrompt = await fs.readFile(execPromptPath, 'utf-8');
         
+        // Read target profile for the prompt
+        const targetProfile = config.targetProfile;
+        
         const prompt = `${execPrompt}
 
 ---
+
+## 目标应用配置
+
+**基础 URL**: ${targetProfile.baseUrl}
+
+**登录配置**:
+- 登录页面: ${targetProfile.login.loginUrl}
+- 用户名字段: ${targetProfile.login.usernameSelector}
+- 密码字段: ${targetProfile.login.passwordSelector}
+- 提交按钮: ${targetProfile.login.submitSelector}
+- 测试用户名: ${targetProfile.login.credentials?.username || ''}
+- 测试密码: ${targetProfile.login.credentials?.password || ''}
+- 登录成功标识: ${targetProfile.login.successIndicator}
+
+**浏览器配置**:
+- 视口: ${targetProfile.browser.viewport?.width || 1280}x${targetProfile.browser.viewport?.height || 720}
+- 超时: ${targetProfile.browser.timeoutMs || 30000}ms
+
+**UI 框架**: ${targetProfile.uiFramework || 'unknown'}
 
 ## 工作目录说明
 
 当前工作目录结构：
 - \`inputs/\` - 输入文件
+  - \`target-profile.json\` - 目标应用配置（包含 URL、登录信息等）
 - \`outputs/\` - 输出文件（包含 test-cases.json）
 - \`evidence/screenshots/\` - 截图保存目录
 
@@ -541,10 +579,13 @@ ${JSON.stringify(testCases, null, 2)}
 
 ## 任务
 
-1. 读取 \`outputs/test-cases.json\` 获取测试用例
-2. 执行每个测试用例
-3. 将截图保存到 \`evidence/screenshots/\` 目录
-4. 将执行结果保存到 \`outputs/execution-results.json\`
+1. 读取 \`inputs/target-profile.json\` 获取目标应用配置
+2. 读取 \`outputs/test-cases.json\` 获取测试用例
+3. 使用 Playwright 执行测试：
+   - 首先登录系统（使用上面的登录配置）
+   - 然后执行每个测试用例
+4. 将截图保存到 \`evidence/screenshots/\` 目录
+5. 将执行结果保存到 \`outputs/execution-results.json\`
 `;
         
         const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
