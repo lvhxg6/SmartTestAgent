@@ -76,7 +76,10 @@ export class ClaudeCodeAdapter {
       let output = '';
       let errorOutput = '';
 
-      const proc = spawn('claude', args, {
+      // Add --dangerously-skip-permissions to bypass permission prompts
+      const fullArgs = ['--dangerously-skip-permissions', ...args];
+      
+      const proc = spawn('claude', fullArgs, {
         cwd: params.workingDir,
         timeout,
         shell: true,
