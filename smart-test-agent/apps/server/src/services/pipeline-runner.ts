@@ -291,20 +291,43 @@ export class PipelineRunner {
    * Resolve PRD path - check if it's a file path or needs to be found
    */
   private async resolvePrdPath(prdPath: string, projectId: string): Promise<string> {
-    // If it's an absolute path or starts with docs/, use as-is
-    if (path.isAbsolute(prdPath) || prdPath.startsWith('docs/')) {
+    // If it's an absolute path, use as-is
+    if (path.isAbsolute(prdPath)) {
       return prdPath;
     }
 
-    // Check in project uploads directory
-    const uploadedPath = path.join(this.config.workspaceRoot, 'uploads', projectId, prdPath);
-    try {
-      await fs.access(uploadedPath);
-      return uploadedPath;
-    } catch {
-      // File not found in uploads, return original path
+    // If it starts with docs/, use as-is
+    if (prdPath.startsWith('docs/')) {
       return prdPath;
     }
+
+    // Check common locations in order
+    const searchPaths = [
+      // Direct path
+      prdPath,
+      // In docs/prd directory
+      path.join('docs', 'prd', prdPath),
+      // In docs directory
+      path.join('docs', prdPath),
+      // In project uploads directory
+      path.join(this.config.workspaceRoot, 'uploads', projectId, prdPath),
+      // In data/uploads directory
+      path.join('data', 'uploads', projectId, prdPath),
+    ];
+
+    for (const searchPath of searchPaths) {
+      try {
+        await fs.access(searchPath);
+        console.log(`[PipelineRunner] Found PRD at: ${searchPath}`);
+        return searchPath;
+      } catch {
+        // Continue to next path
+      }
+    }
+
+    // File not found, return original path (will fail with clear error)
+    console.warn(`[PipelineRunner] PRD file not found in any location: ${prdPath}`);
+    return prdPath;
   }
 
   /**
