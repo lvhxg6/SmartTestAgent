@@ -153,6 +153,19 @@ export class PipelineRunner {
           });
         }
       }
+
+      // Forward CLI log events to WebSocket
+      if (event.type === 'cli_log') {
+        if (this.io) {
+          this.io.to(`run:${runId}`).emit('cli_log', {
+            runId,
+            source: event.data.source,
+            type: event.data.type,
+            message: event.data.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
     });
 
     // Execute pipeline in background

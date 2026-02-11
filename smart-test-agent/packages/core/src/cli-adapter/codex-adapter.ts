@@ -28,6 +28,8 @@ export interface CodexParams {
   timeoutMs?: number;
   /** Additional CLI arguments */
   additionalArgs?: string[];
+  /** Callback for real-time log output */
+  onLog?: (type: 'stdout' | 'stderr' | 'info', message: string) => void;
 }
 
 /**
@@ -50,8 +52,8 @@ export interface CodexResult {
   degradations: DegradationDecision[];
 }
 
-/** Default timeout (5 minutes) */
-const DEFAULT_TIMEOUT = 5 * 60 * 1000;
+/** Default timeout (15 minutes) */
+const DEFAULT_TIMEOUT = 15 * 60 * 1000;
 
 /**
  * Codex CLI Adapter
@@ -80,9 +82,12 @@ export class CodexAdapter {
     return new Promise((resolve) => {
       let output = '';
       let errorOutput = '';
+      const onLog = params.onLog;
 
       // Build command with shell initialization to load environment variables from ~/.zshrc
       const codexCmd = `source ~/.zshrc 2>/dev/null; codex ${args.map(arg => `"${arg}"`).join(' ')}`;
+
+      onLog?.('info', `Starting Codex CLI with timeout ${timeout}ms...`);
 
       const proc = spawn('zsh', ['-c', codexCmd], {
         cwd: params.workingDir,
@@ -90,16 +95,39 @@ export class CodexAdapter {
       });
 
       proc.stdout?.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        
+        // Parse output for real-time updates
+        const lines = chunk.split('\n').filter((line: string) => line.trim());
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'message' && event.content) {
+              onLog?.('stdout', `[Codex] ${event.content.substring(0, 200)}${event.content.length > 200 ? '...' : ''}`);
+            } else if (event.type === 'result') {
+              onLog?.('stdout', `[Codex] Result: ${event.subtype || 'completed'}`);
+            }
+          } catch {
+            // Not JSON line, log raw if meaningful
+            if (line.length > 0 && line.length < 500) {
+              onLog?.('stdout', line);
+            }
+          }
+        }
       });
 
       proc.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
+        const chunk = data.toString();
+        errorOutput += chunk;
+        onLog?.('stderr', chunk);
       });
 
       proc.on('close', (code) => {
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;
+
+        onLog?.('info', `Codex CLI exited with code ${exitCode} after ${durationMs}ms`);
 
         // Check for authentication errors in output
         const authErrorPatterns = [
@@ -123,6 +151,9 @@ export class CodexAdapter {
           // Not JSON, ignore
         }
 
+        // Check for timeout (SIGTERM = 143)
+        const isTimeout = exitCode === 143;
+
         if (exitCode === 0 && !hasAuthError && !hasJsonError) {
           const parsedOutput = this.tryParseJson(output);
           resolve({
@@ -134,11 +165,19 @@ export class CodexAdapter {
             degradations: this.degradations,
           });
         } else {
-          const errorMsg = hasAuthError 
-            ? 'Codex CLI authentication error: Please authenticate first'
-            : hasJsonError
-            ? `Codex CLI returned error: ${this.extractErrorMessage(output)}`
-            : errorOutput || `Process exited with code ${exitCode}`;
+          let errorMsg: string;
+          if (isTimeout) {
+            errorMsg = `Codex CLI timed out after ${Math.round(durationMs / 1000)}s. Consider increasing timeout or simplifying the task.`;
+          } else if (hasAuthError) {
+            errorMsg = 'Codex CLI authentication error: Please authenticate first';
+          } else if (hasJsonError) {
+            errorMsg = `Codex CLI returned error: ${this.extractErrorMessage(output)}`;
+          } else {
+            errorMsg = errorOutput || `Process exited with code ${exitCode}`;
+          }
+          
+          onLog?.('info', `Error: ${errorMsg}`);
+          
           resolve({
             success: false,
             output,

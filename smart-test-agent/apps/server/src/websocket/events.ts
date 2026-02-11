@@ -103,6 +103,17 @@ export interface ProgressUpdateEvent {
 }
 
 /**
+ * CLI log event payload - for real-time CLI output streaming
+ */
+export interface CliLogEvent {
+  runId: string;
+  source: 'claude' | 'codex';
+  type: 'stdout' | 'stderr' | 'info' | 'error';
+  message: string;
+  timestamp: string;
+}
+
+/**
  * Error event payload
  */
 export interface ErrorEvent {
@@ -130,6 +141,9 @@ export const WebSocketEvents = {
   
   // Progress events
   PROGRESS_UPDATE: 'progress_update',
+  
+  // CLI log events
+  CLI_LOG: 'cli_log',
   
   // Error events
   ERROR: 'error',
@@ -230,6 +244,16 @@ export class WebSocketEventEmitter {
   emitProgressUpdate(event: ProgressUpdateEvent): void {
     this.io.to(this.getRoomName(event.runId)).emit(
       WebSocketEvents.PROGRESS_UPDATE,
+      event
+    );
+  }
+
+  /**
+   * Emit CLI log event for real-time output streaming
+   */
+  emitCliLog(event: CliLogEvent): void {
+    this.io.to(this.getRoomName(event.runId)).emit(
+      WebSocketEvents.CLI_LOG,
       event
     );
   }

@@ -23,6 +23,8 @@ export interface ClaudeCodeParams {
   timeoutMs?: number;
   /** Additional CLI arguments */
   additionalArgs?: string[];
+  /** Callback for real-time log output */
+  onLog?: (type: 'stdout' | 'stderr' | 'info', message: string) => void;
 }
 
 /**
@@ -45,8 +47,8 @@ export interface ClaudeCodeResult {
   degradations: DegradationDecision[];
 }
 
-/** Default timeout (5 minutes) */
-const DEFAULT_TIMEOUT = 5 * 60 * 1000;
+/** Default timeout (15 minutes for complex PRD parsing) */
+const DEFAULT_TIMEOUT = 15 * 60 * 1000;
 
 /**
  * Claude Code CLI Adapter
@@ -75,6 +77,7 @@ export class ClaudeCodeAdapter {
     return new Promise((resolve) => {
       let output = '';
       let errorOutput = '';
+      const onLog = params.onLog;
 
       // Add --dangerously-skip-permissions to bypass permission prompts
       const fullArgs = ['--dangerously-skip-permissions', ...args];
@@ -82,22 +85,57 @@ export class ClaudeCodeAdapter {
       // Build command with shell initialization to load environment variables from ~/.zshrc
       const claudeCmd = `source ~/.zshrc 2>/dev/null; claude ${fullArgs.map(arg => `"${arg}"`).join(' ')}`;
       
+      onLog?.('info', `Starting Claude Code CLI with timeout ${timeout}ms...`);
+      
       const proc = spawn('zsh', ['-c', claudeCmd], {
         cwd: params.workingDir,
         timeout,
       });
 
       proc.stdout?.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        
+        // Parse stream-json format for real-time updates
+        const lines = chunk.split('\n').filter((line: string) => line.trim());
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line);
+            // Extract meaningful info from Claude Code events
+            if (event.type === 'assistant' && event.message?.content) {
+              const content = event.message.content;
+              if (Array.isArray(content)) {
+                for (const item of content) {
+                  if (item.type === 'text' && item.text) {
+                    onLog?.('stdout', `[Claude] ${item.text.substring(0, 200)}${item.text.length > 200 ? '...' : ''}`);
+                  } else if (item.type === 'tool_use') {
+                    onLog?.('stdout', `[Claude] Using tool: ${item.name}`);
+                  }
+                }
+              }
+            } else if (event.type === 'result') {
+              onLog?.('stdout', `[Claude] Result: ${event.subtype || 'completed'}`);
+            }
+          } catch {
+            // Not JSON line, log raw if meaningful
+            if (line.length > 0 && line.length < 500) {
+              onLog?.('stdout', line);
+            }
+          }
+        }
       });
 
       proc.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
+        const chunk = data.toString();
+        errorOutput += chunk;
+        onLog?.('stderr', chunk);
       });
 
       proc.on('close', (code) => {
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;
+
+        onLog?.('info', `Claude Code CLI exited with code ${exitCode} after ${durationMs}ms`);
 
         // Check for authentication errors in output (CLI may return 0 but with error message)
         const authErrorPatterns = [
@@ -121,6 +159,9 @@ export class ClaudeCodeAdapter {
           // Not JSON, ignore
         }
 
+        // Check for timeout (SIGTERM = 143)
+        const isTimeout = exitCode === 143;
+
         if (exitCode === 0 && !hasAuthError && !hasJsonError) {
           const parsedOutput = this.tryParseJson(output);
           resolve({
@@ -132,11 +173,19 @@ export class ClaudeCodeAdapter {
             degradations: this.degradations,
           });
         } else {
-          const errorMsg = hasAuthError 
-            ? 'Claude Code CLI authentication error: Please run "claude /login" to authenticate'
-            : hasJsonError
-            ? `Claude Code CLI returned error: ${this.extractErrorMessage(output)}`
-            : errorOutput || `Process exited with code ${exitCode}`;
+          let errorMsg: string;
+          if (isTimeout) {
+            errorMsg = `Claude Code CLI timed out after ${Math.round(durationMs / 1000)}s. Consider increasing timeout or simplifying the task.`;
+          } else if (hasAuthError) {
+            errorMsg = 'Claude Code CLI authentication error: Please run "claude /login" to authenticate';
+          } else if (hasJsonError) {
+            errorMsg = `Claude Code CLI returned error: ${this.extractErrorMessage(output)}`;
+          } else {
+            errorMsg = errorOutput || `Process exited with code ${exitCode}`;
+          }
+          
+          onLog?.('info', `Error: ${errorMsg}`);
+          
           resolve({
             success: false,
             output,

@@ -60,7 +60,8 @@ export type PipelineEventType =
   | 'state_changed'
   | 'screenshot_captured'
   | 'approval_required'
-  | 'confirmation_required';
+  | 'confirmation_required'
+  | 'cli_log';
 
 export type PipelineEventHandler = (event: {
   type: PipelineEventType;
@@ -214,10 +215,20 @@ export class TestPipeline {
         const prdContent = await fs.readFile(config.prdPath, 'utf-8');
         const promptPath = path.join(config.promptsDir, 'prd-parse.md');
         const promptTemplate = await fs.readFile(promptPath, 'utf-8');
+        
+        // Create log callback to emit CLI logs
+        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+          this.emit('cli_log', runId, { source: 'claude', type, message });
+        };
+        
         const result = await this.cliAdapter.invokeClaudeCode({
           prompt: promptTemplate + '\n\n---\n\nPRD Content:\n' + prdContent,
           outputFormat: 'json',
+          onLog,
         });
+        
+        // Save raw output for debugging
+        await fs.writeFile(path.join(workspace!.root, 'prd-parse-raw-output.txt'), result.output || '');
         
         // Check if Claude Code invocation was successful
         if (!result.success) {
@@ -264,11 +275,21 @@ export class TestPipeline {
         const testCases = JSON.parse(await fs.readFile(parseResult.artifacts?.testCasesPath as string, 'utf-8'));
         const execPromptPath = path.join(config.promptsDir, 'ui-test-execute.md');
         const execPrompt = await fs.readFile(execPromptPath, 'utf-8');
+        
+        // Create log callback to emit CLI logs
+        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+          this.emit('cli_log', runId, { source: 'claude', type, message });
+        };
+        
         const result = await this.cliAdapter.invokeClaudeCode({
           prompt: execPrompt + '\n\n---\n\nTest Cases:\n' + JSON.stringify(testCases, null, 2),
           outputFormat: 'json',
           allowedTools: ['Bash', 'Read', 'Write'],
+          onLog,
         });
+        
+        // Save raw output for debugging
+        await fs.writeFile(path.join(workspace!.root, 'test-execution-raw-output.txt'), result.output || '');
         
         // Check if Claude Code invocation was successful
         if (!result.success) {
@@ -313,9 +334,19 @@ export class TestPipeline {
         const executionResults = JSON.parse(await fs.readFile(execResult.artifacts?.executionResultsPath as string, 'utf-8'));
         const reviewPromptPath = path.join(config.promptsDir, 'review-results.md');
         const reviewPrompt = await fs.readFile(reviewPromptPath, 'utf-8');
+        
+        // Create log callback to emit CLI logs
+        const onLog = (type: 'stdout' | 'stderr' | 'info', message: string) => {
+          this.emit('cli_log', runId, { source: 'codex', type, message });
+        };
+        
         const result = await this.cliAdapter.invokeCodex({
           prompt: reviewPrompt + '\n\n---\n\nExecution Results:\n' + JSON.stringify(executionResults, null, 2),
+          onLog,
         });
+        
+        // Save raw output for debugging
+        await fs.writeFile(path.join(workspace!.root, 'codex-review-raw-output.txt'), result.output || '');
         
         // Check if Codex invocation was successful
         if (!result.success) {
