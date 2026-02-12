@@ -52,6 +52,40 @@
 6. 以 JSON 格式输出执行结果
 7. 处理数据准备和清理
 
+## ⚠️ 实时日志输出要求（重要）
+
+脚本必须实时输出执行进度，以便监控执行状态。使用以下日志函数：
+
+```javascript
+// 实时日志函数 - 避免缓冲，立即输出
+function log(msg) {
+  const timestamp = new Date().toISOString().slice(11, 23); // HH:mm:ss.SSS
+  process.stdout.write(`[${timestamp}] ${msg}\n`);
+}
+```
+
+在以下关键点输出日志：
+1. **脚本启动时**：`log('🚀 测试脚本启动，共 N 个测试用例');`
+2. **登录开始/结束**：`log('🔐 开始登录...');` / `log('✅ 登录成功');`
+3. **每个测试用例开始**：`log('📋 [1/71] TC-001: 测试用例标题');`
+4. **每个步骤执行**：`log('  ▶ S1: 步骤描述');`
+5. **步骤成功/失败**：`log('  ✅ S1 完成 (150ms)');` / `log('  ❌ S1 失败: 错误信息');`
+6. **断言结果**：`log('  🔍 AST-001: pass/fail');`
+7. **测试用例结束**：`log('📋 [1/71] TC-001: passed/failed/error');`
+8. **脚本结束**：`log('🏁 测试完成: 通过=X, 失败=Y, 错误=Z');`
+
+## ⚠️ 超时设置要求
+
+为避免脚本长时间卡住，设置合理的超时时间：
+
+```javascript
+const STEP_TIMEOUT = 10000;   // 单步操作超时 10 秒
+const NAV_TIMEOUT = 15000;    // 页面导航超时 15 秒
+const LOGIN_TIMEOUT = 20000;  // 登录超时 20 秒
+```
+
+如果某个步骤超时，记录错误并继续执行下一个测试用例，不要让整个脚本卡住。
+
 ## Output Format
 
 ### Generated Script: test-{run_id}.js
@@ -472,6 +506,11 @@ const config = /* TARGET_PROFILE_JSON */;
 const testCases = /* TEST_CASES_JSON */;
 const runId = '{run_id}';
 
+// 超时设置
+const STEP_TIMEOUT = 10000;   // 单步操作超时 10 秒
+const NAV_TIMEOUT = 15000;    // 页面导航超时 15 秒
+const LOGIN_TIMEOUT = 20000;  // 登录超时 20 秒
+
 // ============================================================================
 // Results Storage
 // ============================================================================
@@ -482,6 +521,15 @@ const results = {
   completed_at: null,
   test_cases: []
 };
+
+// ============================================================================
+// 实时日志函数
+// ============================================================================
+
+function log(msg) {
+  const timestamp = new Date().toISOString().slice(11, 23); // HH:mm:ss.SSS
+  process.stdout.write(`[${timestamp}] ${msg}\n`);
+}
 
 // ============================================================================
 // Utility Functions
