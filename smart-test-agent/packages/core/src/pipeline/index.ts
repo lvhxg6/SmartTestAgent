@@ -180,6 +180,12 @@ export class TestPipeline {
   }
 
   async execute(config: PipelineConfig): Promise<PipelineResult> {
+    console.log(`[TestPipeline] ========== execute() 开始 ==========`);
+    console.log(`[TestPipeline] existingRunId: ${config.existingRunId}`);
+    console.log(`[TestPipeline] startFromStep: ${config.startFromStep}`);
+    console.log(`[TestPipeline] isResume: ${config.isResume}`);
+    console.log(`[TestPipeline] skipApprovalWait: ${config.skipApprovalWait}`);
+    
     const steps: StepResult[] = [];
     let runId = config.existingRunId || '';
     let workspace: WorkspaceStructure | null = null;
@@ -188,6 +194,7 @@ export class TestPipeline {
 
     // 如果是恢复执行，发送 pipeline_resumed 事件
     if (config.isResume && config.startFromStep && runId) {
+      console.log(`[TestPipeline] 发送 pipeline_resumed 事件, fromStep: ${config.startFromStep}`);
       this.emit('pipeline_resumed', runId, {
         fromStep: config.startFromStep,
         timestamp: new Date().toISOString(),
@@ -196,11 +203,15 @@ export class TestPipeline {
 
     try {
       // Step 0: Initialize workspace and copy input files
+      console.log(`[TestPipeline] Step 0: Initialize - shouldSkip: ${this.shouldSkipStep('initialize', config)}`);
       if (this.shouldSkipStep('initialize', config)) {
         // 跳过 initialize 步骤，加载现有工作目录
+        console.log(`[TestPipeline] 跳过 initialize，加载现有工作目录`);
         steps.push(this.createSkippedStepResult('initialize', runId));
         const workspacePath = path.join(config.workspaceRoot, runId);
+        console.log(`[TestPipeline] 工作目录: ${workspacePath}`);
         workspace = await createWorkspace(config.workspaceRoot, runId);
+        console.log(`[TestPipeline] workspace.root: ${workspace.root}`);
       } else {
         const initResult = await this.executeStep('initialize', async () => {
           if (!runId) {
@@ -338,6 +349,7 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
         
         // 如果不是恢复执行且不跳过审批等待，则暂停执行等待审批
         if (!config.isResume && !config.skipApprovalWait) {
+          console.log(`[TestPipeline] 等待审批，暂停执行`);
           return {
             runId,
             status: 'awaiting_approval',
@@ -350,8 +362,10 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
       }
 
       // Step 2: Test execution
+      console.log(`[TestPipeline] Step 2: test_execution - shouldSkip: ${this.shouldSkipStep('test_execution', config)}`);
       let execResult: StepResult;
       if (this.shouldSkipStep('test_execution', config)) {
+        console.log(`[TestPipeline] 跳过 test_execution`);
         execResult = this.createSkippedStepResult('test_execution', runId);
         const outputsDir = path.join(workspace!.root, 'outputs');
         execResult.artifacts = {
@@ -359,10 +373,13 @@ ${config.routes.map(r => `- ${r}`).join('\n')}
           screenshotsDir: path.join(workspace!.root, 'evidence', 'screenshots'),
         };
       } else {
+        console.log(`[TestPipeline] 开始执行 test_execution...`);
         execResult = await this.executeTestExecution(config, workspace!, runId, parseResult);
+        console.log(`[TestPipeline] test_execution 完成, 状态: ${execResult.status}`);
       }
       steps.push(execResult);
       if (execResult.status === 'failed') {
+        console.log(`[TestPipeline] test_execution 失败: ${execResult.error}`);
         await this.transitionState(runId, 'ERROR', { errorType: 'playwright_error' });
         return this.createFailedResult(runId, steps, execResult.error);
       }
@@ -720,10 +737,17 @@ mkdir -p ./outputs/test-cases
     parseResult: StepResult
   ): Promise<StepResult> {
     return this.executeStep('test_execution', async () => {
+      console.log(`[TestPipeline] executeTestExecution 开始`);
+      console.log(`[TestPipeline] workspace.root: ${workspace.root}`);
+      console.log(`[TestPipeline] testCasesPath: ${parseResult.artifacts?.testCasesPath}`);
+      
       const testCases = JSON.parse(
         await fs.readFile(parseResult.artifacts?.testCasesPath as string, 'utf-8')
       );
+      console.log(`[TestPipeline] 测试用例数量: ${testCases.length}`);
+      
       const execPromptPath = path.join(config.promptsDir, 'ui-test-execute.md');
+      console.log(`[TestPipeline] 加载 prompt: ${execPromptPath}`);
       const execPrompt = await fs.readFile(execPromptPath, 'utf-8');
       
       const targetProfile = config.targetProfile;
@@ -795,23 +819,30 @@ ${JSON.stringify(testCases, null, 2)}
         throw new Error(`Claude Code 调用失败: ${result.error || '未知错误'}`);
       }
       
+      const outputsDir = path.join(workspace.root, 'outputs');
+      const executionResultsPath = path.join(outputsDir, 'execution-results.json');
+      
       let executionResults: unknown;
+      
+      // 优先从文件读取（Claude Code 可能已将结果写入文件）
       try {
-        executionResults = JSON.parse(result.output);
+        const fileContent = await fs.readFile(executionResultsPath, 'utf-8');
+        executionResults = JSON.parse(fileContent);
       } catch {
-        const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          executionResults = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('无法解析执行结果为 JSON');
+        // 文件不存在或无法解析，尝试从 CLI 输出解析
+        try {
+          executionResults = JSON.parse(result.output);
+        } catch {
+          const jsonMatch = result.output.match(/\{[\s\S]*\}/) || result.output.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            executionResults = JSON.parse(jsonMatch[0]);
+            // 将解析结果写入文件
+            await fs.writeFile(executionResultsPath, JSON.stringify(executionResults, null, 2));
+          } else {
+            throw new Error('无法解析执行结果为 JSON，且文件 outputs/execution-results.json 不存在');
+          }
         }
       }
-      
-      const outputsDir = path.join(workspace.root, 'outputs');
-      await fs.writeFile(
-        path.join(outputsDir, 'execution-results.json'),
-        JSON.stringify(executionResults, null, 2)
-      );
       
       return {
         executionResultsPath: path.join(outputsDir, 'execution-results.json'),

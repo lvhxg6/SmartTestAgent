@@ -207,18 +207,26 @@ export class PipelineRunner {
     config: PipelineConfig
   ): Promise<void> {
     try {
-      console.log(`[PipelineRunner] Executing pipeline for run: ${runId}`);
+      console.log(`[PipelineRunner] ========== 开始执行 Pipeline ==========`);
+      console.log(`[PipelineRunner] Run ID: ${runId}`);
+      console.log(`[PipelineRunner] startFromStep: ${config.startFromStep}`);
+      console.log(`[PipelineRunner] isResume: ${config.isResume}`);
+      
       const result = await pipeline.execute(config);
 
-      console.log(`[PipelineRunner] Pipeline completed for run: ${runId}`, result.status);
+      console.log(`[PipelineRunner] ========== Pipeline 执行完成 ==========`);
+      console.log(`[PipelineRunner] 状态: ${result.status}`);
+      console.log(`[PipelineRunner] 步骤数: ${result.steps?.length || 0}`);
 
       // Update final state
       if (result.status === 'completed') {
+        console.log(`[PipelineRunner] 更新状态为 report_ready`);
         await this.updateRunState(runId, 'report_ready', null, undefined, {
           reportPath: result.reportPath,
           qualityMetrics: result.qualityMetrics,
         });
       } else if (result.status === 'failed') {
+        console.log(`[PipelineRunner] 更新状态为 failed, 错误: ${result.error}`);
         await this.updateRunState(runId, 'failed', 'internal_error', result.error);
       }
 
@@ -233,7 +241,11 @@ export class PipelineRunner {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[PipelineRunner] Pipeline error for run ${runId}:`, errorMsg);
+      console.error(`[PipelineRunner] ========== Pipeline 执行异常 ==========`);
+      console.error(`[PipelineRunner] Run ID: ${runId}`);
+      console.error(`[PipelineRunner] 错误: ${errorMsg}`);
+      console.error(`[PipelineRunner] Stack:`, error instanceof Error ? error.stack : '');
+      
       await this.updateRunState(runId, 'failed', 'internal_error', errorMsg);
 
       if (this.io) {
@@ -243,6 +255,7 @@ export class PipelineRunner {
         });
       }
     } finally {
+      console.log(`[PipelineRunner] 清理 runningPipelines: ${runId}`);
       this.runningPipelines.delete(runId);
     }
   }
@@ -574,52 +587,72 @@ export class PipelineRunner {
    * @throws Error 如果验证失败
    */
   async continueAfterApproval(runId: string): Promise<void> {
-    console.log(`[PipelineRunner] Continuing pipeline after approval for run: ${runId}`);
+    console.log(`[PipelineRunner] ========== 审批通过，开始继续执行 ==========`);
+    console.log(`[PipelineRunner] Run ID: ${runId}`);
 
     // 1. 验证 TestRun 存在
+    console.log(`[PipelineRunner] Step 1: 验证 TestRun 存在...`);
     const testRun = await prisma.testRun.findUnique({
       where: { id: runId },
     });
 
     if (!testRun) {
+      console.error(`[PipelineRunner] TestRun not found: ${runId}`);
       throw new Error(`TestRun not found: ${runId}`);
     }
+    console.log(`[PipelineRunner] TestRun 状态: ${testRun.state}`);
 
-    // 2. 验证 TestRun 状态为 awaiting_approval
-    if (testRun.state !== 'awaiting_approval') {
-      throw new Error(`TestRun is not awaiting approval (state: ${testRun.state})`);
+    // 2. 验证 TestRun 状态为 awaiting_approval 或 executing（可能是之前执行中断）
+    console.log(`[PipelineRunner] Step 2: 验证状态...`);
+    if (testRun.state !== 'awaiting_approval' && testRun.state !== 'executing') {
+      console.error(`[PipelineRunner] 状态不正确: ${testRun.state}`);
+      throw new Error(`TestRun is not in a resumable state (state: ${testRun.state})`);
+    }
+    
+    // 如果状态是 executing，检查是否真的在运行
+    if (testRun.state === 'executing') {
+      if (this.runningPipelines.has(runId)) {
+        console.error(`[PipelineRunner] Pipeline 已在运行中`);
+        throw new Error(`Pipeline is already running for run: ${runId}`);
+      }
+      console.log(`[PipelineRunner] 状态为 executing 但 Pipeline 未运行，允许恢复执行`);
     }
 
-    // 3. 检查是否已经在运行
-    if (this.runningPipelines.has(runId)) {
-      throw new Error(`Pipeline is already running for run: ${runId}`);
-    }
-
-    // 4. 获取 target profile
+    // 3. 获取 target profile
+    console.log(`[PipelineRunner] Step 3: 获取 target profile...`);
     const targetProfile = await prisma.targetProfile.findUnique({
       where: { projectId: testRun.projectId },
     });
 
     if (!targetProfile) {
+      console.error(`[PipelineRunner] Target profile not found`);
       throw new Error(`Target profile not found for project: ${testRun.projectId}`);
     }
+    console.log(`[PipelineRunner] Target profile 获取成功, baseUrl: ${targetProfile.baseUrl}`);
 
-    // 5. 获取项目信息
+    // 4. 获取项目信息
+    console.log(`[PipelineRunner] Step 4: 获取项目信息...`);
     const project = await prisma.project.findUnique({
       where: { id: testRun.projectId },
     });
 
     if (!project) {
+      console.error(`[PipelineRunner] Project not found`);
       throw new Error(`Project not found: ${testRun.projectId}`);
     }
+    console.log(`[PipelineRunner] 项目: ${project.name}`);
 
-    // 6. 转换 target profile
+    // 5. 转换 target profile
+    console.log(`[PipelineRunner] Step 5: 转换 target profile...`);
     const profileConfig = this.convertTargetProfile(targetProfile);
 
-    // 7. 解析 PRD 路径
+    // 6. 解析 PRD 路径
+    console.log(`[PipelineRunner] Step 6: 解析 PRD 路径...`);
     const prdPath = await this.resolvePrdPath(testRun.prdPath, testRun.projectId);
+    console.log(`[PipelineRunner] PRD 路径: ${prdPath}`);
 
-    // 8. 创建 Pipeline 配置，从 test_execution 步骤开始
+    // 7. 创建 Pipeline 配置，从 test_execution 步骤开始
+    console.log(`[PipelineRunner] Step 7: 创建 Pipeline 配置...`);
     const pipelineConfig: PipelineConfig = {
       projectId: testRun.projectId,
       prdPath,
@@ -633,15 +666,19 @@ export class PipelineRunner {
       isResume: true,
       skipApprovalWait: true,
     };
+    console.log(`[PipelineRunner] Pipeline 配置: startFromStep=${pipelineConfig.startFromStep}, isResume=${pipelineConfig.isResume}`);
 
-    // 9. 更新 TestRun 状态为 executing
+    // 8. 更新 TestRun 状态为 executing
+    console.log(`[PipelineRunner] Step 8: 更新状态为 executing...`);
     await this.updateRunState(runId, 'executing', null, undefined);
 
-    // 10. 创建并配置 Pipeline
+    // 9. 创建并配置 Pipeline
+    console.log(`[PipelineRunner] Step 9: 创建 Pipeline 实例...`);
     const pipeline = new TestPipeline();
     this.runningPipelines.set(runId, pipeline);
 
-    // 11. 设置事件处理器（复用 resumePipeline 的事件处理逻辑）
+    // 10. 设置事件处理器
+    console.log(`[PipelineRunner] Step 10: 设置事件处理器...`);
     pipeline.onEvent(async (event) => {
       console.log(`[PipelineRunner] Continue Event: ${event.type} for run ${event.runId}`, event.data);
 
@@ -653,15 +690,20 @@ export class PipelineRunner {
       // Update database state based on step
       if (event.type === 'step_started') {
         const step = event.data.step as string;
+        console.log(`[PipelineRunner] 步骤开始: ${step}`);
         const stepState = STEP_TO_STATE[step];
         if (stepState) {
           await this.updateRunState(runId, stepState);
         }
       }
 
+      if (event.type === 'step_completed') {
+        console.log(`[PipelineRunner] 步骤完成: ${event.data.step}, 状态: ${event.data.status}`);
+      }
+
       if (event.type === 'step_failed') {
         const errorMsg = event.data.error as string;
-        console.error(`[PipelineRunner] Step failed: ${event.data.step}`, errorMsg);
+        console.error(`[PipelineRunner] 步骤失败: ${event.data.step}`, errorMsg);
       }
 
       if (event.type === 'confirmation_required') {
@@ -676,6 +718,8 @@ export class PipelineRunner {
 
       // Forward CLI log events to WebSocket
       if (event.type === 'cli_log') {
+        const msg = String(event.data.message || '').substring(0, 100);
+        console.log(`[PipelineRunner] CLI 日志: [${event.data.source}] ${msg}`);
         if (this.io) {
           this.io.to(`run:${runId}`).emit('cli_log', {
             runId,
@@ -688,8 +732,10 @@ export class PipelineRunner {
       }
     });
 
-    // 12. 在后台执行 Pipeline
+    // 11. 在后台执行 Pipeline
+    console.log(`[PipelineRunner] Step 11: 启动后台 Pipeline 执行...`);
     this.executePipelineAsync(runId, pipeline, pipelineConfig);
+    console.log(`[PipelineRunner] ========== Pipeline 已在后台启动 ==========`);
   }
 
   /**

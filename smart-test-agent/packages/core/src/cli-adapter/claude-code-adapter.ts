@@ -49,8 +49,8 @@ export interface ClaudeCodeResult {
   degradations: DegradationDecision[];
 }
 
-/** Default timeout (15 minutes for complex PRD parsing) */
-const DEFAULT_TIMEOUT = 15 * 60 * 1000;
+/** Default timeout (30 minutes for complex PRD parsing) */
+const DEFAULT_TIMEOUT = 30 * 60 * 1000;
 
 /** Tool name mapping for Chinese display */
 const TOOL_NAME_MAP: Record<string, string> = {
@@ -294,8 +294,21 @@ export class ClaudeCodeAdapter {
                 : JSON.stringify(item.content).substring(0, 200);
               onLog?.('stderr', `❌ 执行失败: ${errorMsg}`);
             } else {
-              // Just show success indicator
-              onLog?.('stdout', `✅ 执行成功`);
+              // Show success with output preview for Bash commands
+              const outputContent = typeof item.content === 'string' ? item.content : '';
+              if (outputContent.length > 0) {
+                // Extract last few meaningful lines for display
+                const lines = outputContent.split('\n').filter((l: string) => l.trim());
+                const lastLines = lines.slice(-5).join('\n');
+                const preview = lastLines.length > 300 ? lastLines.substring(0, 300) + '...' : lastLines;
+                if (preview.trim()) {
+                  onLog?.('stdout', `✅ 执行成功:\n${preview}`);
+                } else {
+                  onLog?.('stdout', `✅ 执行成功`);
+                }
+              } else {
+                onLog?.('stdout', `✅ 执行成功`);
+              }
             }
           }
         }
