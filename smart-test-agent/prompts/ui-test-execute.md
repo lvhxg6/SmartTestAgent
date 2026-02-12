@@ -558,9 +558,22 @@ async function captureScreenshot(page, name) {
 
 async function main() {
   results.started_at = new Date().toISOString();
+  log(`🚀 测试脚本启动，共 ${testCases.length} 个测试用例`);
+  
+  // 从配置读取 headless 和 slowMo，支持调试模式
+  const headless = config.browser.headless !== false; // 默认 true
+  const slowMo = config.browser.slowMo || 0;
+  
+  if (!headless) {
+    log('🔍 调试模式：使用有头浏览器');
+  }
+  if (slowMo > 0) {
+    log(`🔍 调试模式：操作延迟 ${slowMo}ms`);
+  }
   
   const browser = await chromium.launch({
-    headless: true,
+    headless: headless,
+    slowMo: slowMo,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   

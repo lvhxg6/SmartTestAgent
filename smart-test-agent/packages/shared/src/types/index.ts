@@ -18,6 +18,10 @@ export interface BrowserConfig {
   locale: string;
   /** Default timeout in milliseconds */
   timeoutMs: number;
+  /** Whether to run browser in headless mode (default: true) */
+  headless?: boolean;
+  /** Slow down operations by specified milliseconds for debugging (default: 0) */
+  slowMo?: number;
 }
 
 /**

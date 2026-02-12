@@ -225,6 +225,8 @@ export const ProjectConfig: React.FC = () => {
             viewport: { width: 1920, height: 1080 },
             locale: 'zh-CN',
             timeoutMs: 30000,
+            headless: true,
+            slowMo: 0,
           },
           login: {
             loginUrl: '/#/login',
@@ -282,6 +284,24 @@ export const ProjectConfig: React.FC = () => {
           <Form.Item name={['browser', 'ignoreHTTPSErrors']} label="忽略 HTTPS 错误" valuePropName="checked">
             <Switch />
           </Form.Item>
+          <Divider orientation="left" plain>调试选项</Divider>
+          <Space size="large">
+            <Form.Item 
+              name={['browser', 'headless']} 
+              label="无头模式" 
+              valuePropName="checked"
+              tooltip="关闭后可以看到浏览器界面，方便调试"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item 
+              name={['browser', 'slowMo']} 
+              label="操作延迟 (ms)"
+              tooltip="每个操作之间的延迟时间，方便观察执行过程"
+            >
+              <InputNumber min={0} max={5000} step={100} placeholder="0" />
+            </Form.Item>
+          </Space>
         </Card>
 
         <Card title="登录配置" style={{ marginBottom: 16 }}>
